@@ -20,7 +20,7 @@ describe('useKeyboardShortcuts', () => {
         renderHook(() => useKeyboardShortcuts({ toggleExplorer, focusChat }));
 
         listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: 'b' }));
-        listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: '`' }));
+        listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: '/' }));
 
         expect(toggleExplorer).toHaveBeenCalled();
         expect(focusChat).toHaveBeenCalled();

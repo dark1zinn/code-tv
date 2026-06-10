@@ -1,4 +1,4 @@
 # Bare `bun test` from the repo root runs only the workspace test orchestrator.
-# Each package uses its own bunfig.toml preload (reflect-metadata / happy-dom).
+# Each package uses its own tsconfig.json, bunfig.toml, and test preload.
 [test]
 root = "./scripts"
