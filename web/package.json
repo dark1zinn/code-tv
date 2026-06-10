@@ -8,8 +8,11 @@
         "test": "bun test --preload ./src/test-setup.ts"
     },
     "dependencies": {
+        "@monaco-editor/react": "^4.7.0",
+        "@react-symbols/icons": "^1.0.0",
         "react": "^19.0.0",
-        "react-dom": "^19.0.0"
+        "react-dom": "^19.0.0",
+        "socket.io-client": "^4.8.0"
     },
     "devDependencies": {
         "@happy-dom/global-registrator": "^17.0.0",
