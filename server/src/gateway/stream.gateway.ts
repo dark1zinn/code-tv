@@ -10,6 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { StorageService } from '../storage/storage.service';
 import { StreamService } from '../stream/stream.service';
 import { ProfileService } from '../profile/profile.service';
+import { WorkspaceService } from '../workspace/workspace.service';
 import { extractRawIp, hashIpAddress } from '../identity/ip-hash';
 
 export type MessagePayload = { sender: string; text: string; timestamp: number };
@@ -42,6 +43,7 @@ export class StreamGateway implements OnGatewayConnection {
         private readonly streamService: StreamService,
         private readonly storageService: StorageService,
         private readonly profileService: ProfileService,
+        private readonly workspaceService: WorkspaceService,
     ) {}
 
     async handleConnection(client: Socket) {
@@ -54,10 +56,44 @@ export class StreamGateway implements OnGatewayConnection {
         this.socketProfiles.set(client.id, { ipHash, username: profile.username });
     }
 
+    @SubscribeMessage('room:host-join')
+    async handleRoomHostJoin(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() roomSlug: string,
+    ) {
+        const profile = this.socketProfiles.get(client.id);
+        if (!profile) return { error: 'unauthenticated' };
+
+        try {
+            await this.streamService.assertHost(roomSlug, profile.ipHash);
+        } catch {
+            return { error: 'forbidden' };
+        }
+
+        if (!this.ephemeralChatBuffer.has(roomSlug)) {
+            this.ephemeralChatBuffer.set(roomSlug, []);
+        }
+        this.roomHosts.set(roomSlug, profile.ipHash);
+        client.join(roomSlug);
+        return { roomSlug };
+    }
+
     @SubscribeMessage('room:create')
     async handleRoomCreate(@ConnectedSocket() client: Socket, @MessageBody() roomSlug: string) {
         const profile = this.socketProfiles.get(client.id);
         if (!profile) return { error: 'unauthenticated' };
+
+        try {
+            const existing = await this.streamService.getStream(roomSlug);
+            if (existing.hostIp === profile.ipHash && existing.isLive) {
+                this.ephemeralChatBuffer.set(roomSlug, this.ephemeralChatBuffer.get(roomSlug) ?? []);
+                this.roomHosts.set(roomSlug, profile.ipHash);
+                client.join(roomSlug);
+                return { roomSlug };
+            }
+        } catch {
+            // stream does not exist — create below
+        }
 
         await this.streamService.createStream(profile.ipHash, { title: roomSlug }, roomSlug);
         this.ephemeralChatBuffer.set(roomSlug, []);
@@ -67,7 +103,14 @@ export class StreamGateway implements OnGatewayConnection {
     }
 
     @SubscribeMessage('room:join')
-    handleRoomJoin(@ConnectedSocket() client: Socket, @MessageBody() roomSlug: string) {
+    async handleRoomJoin(@ConnectedSocket() client: Socket, @MessageBody() roomSlug: string) {
+        try {
+            const stream = await this.streamService.getStream(roomSlug);
+            if (!stream.isLive) return { error: 'stream_offline' };
+        } catch {
+            return { error: 'not_found' };
+        }
+
         if (!this.ephemeralChatBuffer.has(roomSlug)) {
             this.ephemeralChatBuffer.set(roomSlug, []);
         }
@@ -120,9 +163,27 @@ export class StreamGateway implements OnGatewayConnection {
             return { error: 'forbidden' };
         }
 
-        const snapshot =
-            this.latestCodeSnapshots.get(roomSlug) ??
-            JSON.stringify({ roomSlug, closedAt: Date.now() });
+        let snapshot: string;
+        try {
+            const stream = await this.streamService.getStream(roomSlug);
+            if (stream.workspaceId) {
+                const files = await this.workspaceService.getFilesForArchive(stream.workspaceId);
+                snapshot = JSON.stringify({
+                    files,
+                    language: stream.language,
+                    closedAt: Date.now(),
+                });
+            } else {
+                snapshot =
+                    this.latestCodeSnapshots.get(roomSlug) ??
+                    JSON.stringify({ roomSlug, closedAt: Date.now() });
+            }
+        } catch {
+            snapshot =
+                this.latestCodeSnapshots.get(roomSlug) ??
+                JSON.stringify({ roomSlug, closedAt: Date.now() });
+        }
+
         const s3Key = await this.storageService.uploadArchive(roomSlug, snapshot);
         await this.streamService.closeStream(roomSlug, s3Key);
 

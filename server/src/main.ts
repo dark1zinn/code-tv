@@ -1,12 +1,19 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { registerSpaFallback } from './spa-fallback';
 
 export async function bootstrap(port = Number(process.env.PORT ?? 3000)) {
     const app = await NestFactory.create(AppModule);
 
     if (process.env.NODE_ENV !== 'production') {
         app.enableCors({ origin: 'http://localhost:5173' });
+    }
+
+    await app.init();
+
+    if (process.env.NODE_ENV === 'production') {
+        registerSpaFallback(app);
     }
 
     await app.listen(port);
