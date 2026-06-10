@@ -9,7 +9,8 @@ export class StreamController {
     @Post()
     async createStream(
         @Req() req: IdentityRequest,
-        @Body() body: { title?: string; language?: string },
+        @Body()
+        body: { title?: string; language?: string; workspaceId?: string },
     ) {
         const stream = await this.streamService.createStream(req.ipHash!, body);
         return stream;

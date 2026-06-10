@@ -9,6 +9,7 @@ import { IdentityMiddleware } from './identity/identity.middleware';
 import { ProfileModule } from './profile/profile.module';
 import { StorageModule } from './storage/storage.module';
 import { StreamModule } from './stream/stream.module';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
     imports: [
@@ -20,6 +21,7 @@ import { StreamModule } from './stream/stream.module';
         DatabaseModule,
         StorageModule,
         ProfileModule,
+        WorkspaceModule,
         StreamModule,
         GatewayModule,
         CronModule,

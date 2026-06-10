@@ -58,6 +58,23 @@ describe('StreamGateway', () => {
                 streams.set(streamId, { hostIp: ipHash, isLive: true });
                 return { id: streamId, hostIp: ipHash, ...input };
             },
+            getStream: async (id: string) => {
+                const stream = streams.get(id);
+                if (!stream) throw new Error('not found');
+                return {
+                    id,
+                    hostIp: stream.hostIp,
+                    isLive: stream.isLive,
+                    workspaceId: null,
+                    language: 'typescript',
+                    title: id,
+                };
+            },
+            assertHost: async (streamId: string, hostIp: string) => {
+                const stream = streams.get(streamId);
+                if (!stream || stream.hostIp !== hostIp) throw new Error('forbidden');
+                return { id: streamId, hostIp: stream.hostIp, isLive: stream.isLive };
+            },
             closeStream: async (streamId: string, s3Key: string) => {
                 const stream = streams.get(streamId);
                 if (stream) {
@@ -65,6 +82,10 @@ describe('StreamGateway', () => {
                     stream.s3Key = s3Key;
                 }
             },
+        };
+
+        const workspaceService = {
+            getFilesForArchive: async () => [{ path: 'src/main.ts', content: 'export {};\n' }],
         };
 
         const profileService = {
@@ -81,6 +102,7 @@ describe('StreamGateway', () => {
             streamService as never,
             mockStorage as never,
             profileService as never,
+            workspaceService as never,
         );
 
         const broadcasted: Array<{ room: string; event: string; payload: unknown }> = [];
@@ -102,15 +124,16 @@ describe('StreamGateway', () => {
         expect(result).toEqual({ roomSlug: 'alpha-bravo-compile' });
     });
 
-    it('replays chat history on room join', () => {
+    it('replays chat history on room join', async () => {
         const client = createMockSocket('viewer-1', '203.0.113.2');
+        streams.set('alpha-bravo-compile', { hostIp, isLive: true });
         (
             gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }
         ).ephemeralChatBuffer = new Map([
             ['alpha-bravo-compile', [{ sender: 'Anon-1', text: 'hi', timestamp: 1 }]],
         ]);
 
-        const result = gateway.handleRoomJoin(client as Socket, 'alpha-bravo-compile');
+        const result = await gateway.handleRoomJoin(client as Socket, 'alpha-bravo-compile');
         expect(result.history).toHaveLength(1);
     });
 
