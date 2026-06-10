@@ -5,6 +5,7 @@ import { flatFilesToTree } from '@/lib/files';
 export interface WorkspaceData {
     id: string;
     title: string;
+    tags: string[];
     language: string;
     files: Array<{ path: string; content: string }>;
 }

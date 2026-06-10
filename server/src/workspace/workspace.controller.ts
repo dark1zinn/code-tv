@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
 import type { IdentityRequest } from '../identity/identity.middleware';
 import { WorkspaceService } from './workspace.service';
 
@@ -15,7 +15,7 @@ export class WorkspaceController {
     @HttpCode(201)
     async create(
         @Req() req: IdentityRequest,
-        @Body() body: { title?: string; language?: string },
+        @Body() body: { title?: string; tags?: string[] },
     ) {
         return this.workspaceService.create(req.ipHash!, body);
     }
@@ -37,10 +37,16 @@ export class WorkspaceController {
         @Body()
         body: {
             title?: string;
-            language?: string;
+            tags?: string[];
             files?: Array<{ path: string; content: string }>;
         },
     ) {
         return this.workspaceService.patchForOwner(req.ipHash!, id, body);
+    }
+
+    @Delete(':id')
+    @HttpCode(204)
+    async remove(@Req() req: IdentityRequest, @Param('id') id: string) {
+        await this.workspaceService.deleteForOwner(req.ipHash!, id);
     }
 }

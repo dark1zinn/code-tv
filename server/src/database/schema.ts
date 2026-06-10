@@ -19,7 +19,7 @@ export const workspaces = sqliteTable('workspaces', {
         .references(() => profiles.ipAddress, { onDelete: 'cascade' })
         .notNull(),
     title: text('title').default('Untitled Workspace').notNull(),
-    language: text('language').default('typescript').notNull(),
+    tags: text('tags').default('["typescript"]').notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' })
         .$defaultFn(() => new Date())
         .notNull(),

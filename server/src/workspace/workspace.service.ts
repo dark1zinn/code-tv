@@ -10,10 +10,27 @@ import { DATABASE } from '../database/database.module';
 import { profiles, streams, workspaceFiles, workspaces } from '../database/schema';
 import * as schema from '../database/schema';
 import { StorageService } from '../storage/storage.service';
+import {
+    normalizeWorkspaceTags,
+    parseWorkspaceTags,
+    primaryEditorLanguage,
+    serializeWorkspaceTags,
+} from './workspace-tags';
 
 export interface WorkspaceFileDto {
     path: string;
     content: string;
+}
+
+export interface WorkspaceDto {
+    id: string;
+    ownerIp: string;
+    title: string;
+    tags: string[];
+    language: string;
+    updatedAt: Date;
+    createdAt: Date;
+    files?: WorkspaceFileDto[];
 }
 
 export interface WorkspaceViewerDto {
@@ -21,10 +38,13 @@ export interface WorkspaceViewerDto {
     isLive: boolean;
     streamId?: string;
     title: string;
+    tags: string[];
     language: string;
     hostUsername?: string;
     files: WorkspaceFileDto[];
 }
+
+type WorkspaceRow = typeof workspaces.$inferSelect;
 
 @Injectable()
 export class WorkspaceService {
@@ -33,23 +53,25 @@ export class WorkspaceService {
         private readonly storageService: StorageService,
     ) {}
 
-    async listForOwner(ownerIp: string) {
-        return this.db
+    async listForOwner(ownerIp: string): Promise<WorkspaceDto[]> {
+        const rows = await this.db
             .select()
             .from(workspaces)
             .where(eq(workspaces.ownerIp, ownerIp))
             .orderBy(desc(workspaces.updatedAt));
+        return rows.map((row) => this.toWorkspaceDto(row));
     }
 
-    async create(ownerIp: string, input: { title?: string; language?: string } = {}) {
+    async create(ownerIp: string, input: { title?: string; tags?: string[] } = {}) {
         const id = crypto.randomUUID();
         const now = new Date();
+        const tags = normalizeWorkspaceTags(input.tags);
 
         await this.db.insert(workspaces).values({
             id,
             ownerIp,
             title: input.title ?? 'Untitled Workspace',
-            language: input.language ?? 'typescript',
+            tags: serializeWorkspaceTags(tags),
             createdAt: now,
             updatedAt: now,
         });
@@ -65,7 +87,7 @@ export class WorkspaceService {
         return this.getForOwner(ownerIp, id);
     }
 
-    async getForOwner(ownerIp: string, workspaceId: string) {
+    async getForOwner(ownerIp: string, workspaceId: string): Promise<WorkspaceDto> {
         const workspace = await this.getWorkspaceOrThrow(workspaceId);
         if (workspace.ownerIp !== ownerIp) {
             throw new ForbiddenException('Not your workspace');
@@ -77,7 +99,7 @@ export class WorkspaceService {
             .where(eq(workspaceFiles.workspaceId, workspaceId));
 
         return {
-            ...workspace,
+            ...this.toWorkspaceDto(workspace),
             files: files.map((file) => ({ path: file.path, content: file.content })),
         };
     }
@@ -87,7 +109,7 @@ export class WorkspaceService {
         workspaceId: string,
         input: {
             title?: string;
-            language?: string;
+            tags?: string[];
             files?: WorkspaceFileDto[];
         },
     ) {
@@ -95,8 +117,10 @@ export class WorkspaceService {
         const now = new Date();
         const updates: Partial<typeof workspaces.$inferInsert> = { updatedAt: now };
 
-        if (input.title !== undefined) updates.title = input.title;
-        if (input.language !== undefined) updates.language = input.language;
+        if (input.title !== undefined) updates.title = input.title.trim() || 'Untitled Workspace';
+        if (input.tags !== undefined) {
+            updates.tags = serializeWorkspaceTags(normalizeWorkspaceTags(input.tags));
+        }
 
         if (Object.keys(updates).length > 1) {
             await this.db.update(workspaces).set(updates).where(eq(workspaces.id, workspaceId));
@@ -136,6 +160,8 @@ export class WorkspaceService {
 
     async getViewerContext(workspaceId: string): Promise<WorkspaceViewerDto> {
         const workspace = await this.getWorkspaceOrThrow(workspaceId);
+        const tags = parseWorkspaceTags(workspace.tags);
+        const language = primaryEditorLanguage(tags);
 
         const [liveStream] = await this.db
             .select()
@@ -156,7 +182,8 @@ export class WorkspaceService {
                 isLive: true,
                 streamId: liveStream.id,
                 title: workspace.title,
-                language: workspace.language,
+                tags,
+                language,
                 hostUsername: host?.username,
                 files,
             };
@@ -181,7 +208,8 @@ export class WorkspaceService {
                         workspaceId,
                         isLive: false,
                         title: workspace.title,
-                        language: parsed.language ?? workspace.language,
+                        tags,
+                        language: parsed.language ?? language,
                         files: parsed.files,
                     };
                 }
@@ -195,13 +223,38 @@ export class WorkspaceService {
             workspaceId,
             isLive: false,
             title: workspace.title,
-            language: workspace.language,
+            tags,
+            language,
             files,
         };
     }
 
+    async deleteForOwner(ownerIp: string, workspaceId: string) {
+        await this.getForOwner(ownerIp, workspaceId);
+
+        await this.db
+            .update(streams)
+            .set({ isLive: false })
+            .where(and(eq(streams.workspaceId, workspaceId), eq(streams.isLive, true)));
+
+        await this.db.delete(workspaces).where(eq(workspaces.id, workspaceId));
+    }
+
     async getFilesForArchive(workspaceId: string): Promise<WorkspaceFileDto[]> {
         return this.getWorkspaceFiles(workspaceId);
+    }
+
+    private toWorkspaceDto(row: WorkspaceRow): WorkspaceDto {
+        const tags = parseWorkspaceTags(row.tags);
+        return {
+            id: row.id,
+            ownerIp: row.ownerIp,
+            title: row.title,
+            tags,
+            language: primaryEditorLanguage(tags),
+            updatedAt: row.updatedAt,
+            createdAt: row.createdAt,
+        };
     }
 
     private async getWorkspaceFiles(workspaceId: string): Promise<WorkspaceFileDto[]> {

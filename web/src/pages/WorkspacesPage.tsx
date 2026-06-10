@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AppNavbar } from '@/components/AppNavbar';
+import { WorkspaceCard, type WorkspaceSummary } from '@/components/WorkspaceCard';
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-interface WorkspaceSummary {
-    id: string;
-    title: string;
-    language: string;
-    updatedAt: string;
-}
 
 export function WorkspacesPage() {
     const navigate = useNavigate();
@@ -47,6 +40,16 @@ export function WorkspacesPage() {
         }
     };
 
+    const handleUpdated = (updated: WorkspaceSummary) => {
+        setWorkspaces((current) =>
+            current.map((workspace) => (workspace.id === updated.id ? updated : workspace)),
+        );
+    };
+
+    const handleDeleted = (workspaceId: string) => {
+        setWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
+    };
+
     return (
         <div className="flex h-screen flex-col bg-background">
             <AppNavbar username={username} onUsernameChange={setUsername} />
@@ -65,18 +68,12 @@ export function WorkspacesPage() {
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {workspaces.map((workspace) => (
-                                <Link
+                                <WorkspaceCard
                                     key={workspace.id}
-                                    to={`/code/${workspace.id}`}
-                                    className="block"
-                                >
-                                    <Card className="transition-colors hover:border-primary">
-                                        <CardHeader>
-                                            <CardTitle>{workspace.title}</CardTitle>
-                                            <CardDescription>{workspace.language}</CardDescription>
-                                        </CardHeader>
-                                    </Card>
-                                </Link>
+                                    workspace={workspace}
+                                    onUpdated={handleUpdated}
+                                    onDeleted={handleDeleted}
+                                />
                             ))}
                         </div>
                     )}

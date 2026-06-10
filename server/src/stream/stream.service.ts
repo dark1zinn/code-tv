@@ -11,6 +11,10 @@ import { profiles, streams, workspaces } from '../database/schema';
 import * as schema from '../database/schema';
 import { StorageService } from '../storage/storage.service';
 import { WorkspaceService } from '../workspace/workspace.service';
+import {
+    parseWorkspaceTags,
+    primaryEditorLanguage,
+} from '../workspace/workspace-tags';
 import { generateStreamSlug } from './stream.utils';
 
 @Injectable()
@@ -26,6 +30,8 @@ export class StreamService {
         input: { title?: string; language?: string; workspaceId?: string } = {},
         id = generateStreamSlug(),
     ) {
+        let language = input.language ?? 'typescript';
+
         if (input.workspaceId) {
             const [workspace] = await this.db
                 .select()
@@ -35,6 +41,7 @@ export class StreamService {
             if (workspace.ownerIp !== hostIp) {
                 throw new ForbiddenException('Not your workspace');
             }
+            language = primaryEditorLanguage(parseWorkspaceTags(workspace.tags));
 
             const [existingLive] = await this.db
                 .select()
@@ -53,7 +60,7 @@ export class StreamService {
             hostIp,
             workspaceId: input.workspaceId ?? null,
             title: input.title ?? 'Untitled Stream',
-            language: input.language ?? 'typescript',
+            language,
             isLive: true,
             createdAt: now,
         });

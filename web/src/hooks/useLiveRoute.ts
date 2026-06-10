@@ -8,6 +8,7 @@ export interface ViewerContext {
     isLive: boolean;
     streamId?: string;
     title: string;
+    tags: string[];
     language: string;
     hostUsername?: string;
     files: Array<{ path: string; content: string }>;

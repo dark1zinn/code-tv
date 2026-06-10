@@ -74,6 +74,7 @@ describe('WorkspaceController', () => {
         const created = await createRes.json();
         workspaceId = created.id;
         expect(created.title).toBe('My Project');
+        expect(created.tags).toEqual(['typescript']);
         expect(created.files.length).toBeGreaterThan(0);
 
         const listRes = await fetch(`http://127.0.0.1:${port}/_api/workspaces`, {
@@ -81,6 +82,48 @@ describe('WorkspaceController', () => {
         });
         const list = await listRes.json();
         expect(list.some((w: { id: string }) => w.id === workspaceId)).toBe(true);
+    });
+
+    it('patches title and tags for owner', async () => {
+        const response = await fetch(`http://127.0.0.1:${port}/_api/workspaces/${workspaceId}`, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': hostIp,
+            },
+            body: JSON.stringify({
+                title: 'Renamed Project',
+                tags: ['rust', 'tokio', 'wasm'],
+            }),
+        });
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.title).toBe('Renamed Project');
+        expect(body.tags).toEqual(['rust', 'tokio', 'wasm']);
+        expect(body.language).toBe('rust');
+    });
+
+    it('deletes workspace for owner', async () => {
+        const createRes = await fetch(`http://127.0.0.1:${port}/_api/workspaces`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': hostIp,
+            },
+            body: JSON.stringify({ title: 'Disposable' }),
+        });
+        const created = await createRes.json();
+
+        const deleteRes = await fetch(`http://127.0.0.1:${port}/_api/workspaces/${created.id}`, {
+            method: 'DELETE',
+            headers: { 'x-forwarded-for': hostIp },
+        });
+        expect(deleteRes.status).toBe(204);
+
+        const getRes = await fetch(`http://127.0.0.1:${port}/_api/workspaces/${created.id}`, {
+            headers: { 'x-forwarded-for': hostIp },
+        });
+        expect(getRes.status).toBe(404);
     });
 
     it('returns viewer context publicly', async () => {
