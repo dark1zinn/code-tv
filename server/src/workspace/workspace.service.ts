@@ -9,7 +9,6 @@ import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import { DATABASE } from '../database/database.module';
 import { profiles, streams, workspaceFiles, workspaces } from '../database/schema';
 import * as schema from '../database/schema';
-import { StorageService } from '../storage/storage.service';
 import {
     normalizeWorkspaceTags,
     parseWorkspaceTags,
@@ -48,10 +47,7 @@ type WorkspaceRow = typeof workspaces.$inferSelect;
 
 @Injectable()
 export class WorkspaceService {
-    constructor(
-        @Inject(DATABASE) private readonly db: BunSQLiteDatabase<typeof schema>,
-        private readonly storageService: StorageService,
-    ) {}
+    constructor(@Inject(DATABASE) private readonly db: BunSQLiteDatabase<typeof schema>) {}
 
     async listForOwner(ownerIp: string): Promise<WorkspaceDto[]> {
         const rows = await this.db
@@ -189,35 +185,6 @@ export class WorkspaceService {
             };
         }
 
-        const [closedStream] = await this.db
-            .select()
-            .from(streams)
-            .where(and(eq(streams.workspaceId, workspaceId), eq(streams.isLive, false)))
-            .orderBy(desc(streams.createdAt))
-            .limit(1);
-
-        if (closedStream?.s3Key) {
-            try {
-                const archive = await this.storageService.getArchiveContent(closedStream.s3Key);
-                const parsed = JSON.parse(archive) as {
-                    files?: WorkspaceFileDto[];
-                    language?: string;
-                };
-                if (parsed.files?.length) {
-                    return {
-                        workspaceId,
-                        isLive: false,
-                        title: workspace.title,
-                        tags,
-                        language: parsed.language ?? language,
-                        files: parsed.files,
-                    };
-                }
-            } catch {
-                // fall through to workspace files
-            }
-        }
-
         const files = await this.getWorkspaceFiles(workspaceId);
         return {
             workspaceId,
@@ -238,10 +205,6 @@ export class WorkspaceService {
             .where(and(eq(streams.workspaceId, workspaceId), eq(streams.isLive, true)));
 
         await this.db.delete(workspaces).where(eq(workspaces.id, workspaceId));
-    }
-
-    async getFilesForArchive(workspaceId: string): Promise<WorkspaceFileDto[]> {
-        return this.getWorkspaceFiles(workspaceId);
     }
 
     private toWorkspaceDto(row: WorkspaceRow): WorkspaceDto {

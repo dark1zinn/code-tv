@@ -32,25 +32,14 @@ function createMockSocket(id: string, ip: string): MockSocket {
 
 describe('StreamGateway', () => {
     let gateway: StreamGateway;
-    let mockStorage: { uploadArchive: (id: string, content: string) => Promise<string> };
-    let uploaded: Map<string, string>;
     let streams: Map<string, { hostIp: string; isLive: boolean; s3Key?: string }>;
     let profiles: Map<string, { username: string; chatColor?: string }>;
     const hostIp = 'host-hash';
     const viewerIp = 'viewer-hash';
 
     beforeEach(() => {
-        uploaded = new Map();
         streams = new Map();
         profiles = new Map();
-
-        mockStorage = {
-            uploadArchive: async (id, content) => {
-                const key = `pastes/${id}/code_snapshot.json`;
-                uploaded.set(key, content);
-                return key;
-            },
-        };
 
         const streamService = {
             createStream: async (ipHash: string, input: { title?: string }, id?: string) => {
@@ -75,22 +64,12 @@ describe('StreamGateway', () => {
                 if (!stream || stream.hostIp !== hostIp) throw new Error('forbidden');
                 return { id: streamId, hostIp: stream.hostIp, isLive: stream.isLive };
             },
-            closeStream: async (streamId: string, s3Key: string) => {
-                const stream = streams.get(streamId);
-                if (stream) {
-                    stream.isLive = false;
-                    stream.s3Key = s3Key;
-                }
-            },
             endStream: async (streamId: string, _hostIp: string) => {
-                const key = `pastes/${streamId}/code_snapshot.json`;
                 const stream = streams.get(streamId);
                 if (stream) {
                     stream.isLive = false;
-                    stream.s3Key = key;
                 }
-                uploaded.set(key, 'export {};');
-                return { streamId, s3Key: key };
+                return { streamId };
             },
         };
 
@@ -207,7 +186,7 @@ describe('StreamGateway', () => {
         expect((buffer?.at(-1) as { color: string }).color).toBe('#ff00aa');
     });
 
-    it('archives code and closes the room', async () => {
+    it('closes the room without archiving code', async () => {
         const host = createMockSocket('host-1', '203.0.113.1');
         (gateway as unknown as { socketProfiles: Map<string, unknown> }).socketProfiles.set(
             'host-1',
@@ -219,15 +198,11 @@ describe('StreamGateway', () => {
         );
         streams.set('close-room', { hostIp, isLive: true });
         (
-            gateway as unknown as { latestCodeSnapshots: Map<string, string> }
-        ).latestCodeSnapshots.set('close-room', 'export {};');
-        (
             gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }
         ).ephemeralChatBuffer.set('close-room', []);
 
         const result = await gateway.handleRoomClose(host as Socket, 'close-room');
-        expect(result.s3Key).toContain('close-room');
-        expect(uploaded.get(result.s3Key)).toBe('export {};');
+        expect(result.streamId).toBe('close-room');
         expect(streams.get('close-room')?.isLive).toBe(false);
     });
 });

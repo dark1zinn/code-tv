@@ -10,7 +10,6 @@ import { migrateDatabase } from '../database/migrate';
 import { IdentityMiddleware } from '../identity/identity.middleware';
 import { hashIpAddress } from '../identity/ip-hash';
 import { ProfileModule } from '../profile/profile.module';
-import { StorageModule } from '../storage/storage.module';
 import { WorkspaceModule } from './workspace.module';
 
 const tempDir = mkdtempSync(join(tmpdir(), 'codetv-workspace-'));
@@ -23,7 +22,7 @@ beforeAll(() => {
 
 async function createTestApp() {
     const moduleRef = await Test.createTestingModule({
-        imports: [ProfileModule, StorageModule, WorkspaceModule],
+        imports: [ProfileModule, WorkspaceModule],
     })
         .overrideProvider(DATABASE)
         .useValue(testDb)

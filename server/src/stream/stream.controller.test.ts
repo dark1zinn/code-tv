@@ -10,14 +10,7 @@ import { migrateDatabase } from '../database/migrate';
 import { IdentityMiddleware } from '../identity/identity.middleware';
 import { hashIpAddress } from '../identity/ip-hash';
 import { ProfileModule } from '../profile/profile.module';
-import { StorageService } from '../storage/storage.service';
 import { StreamModule } from './stream.module';
-
-const mockStorage = {
-    uploadArchive: async (id: string) => `pastes/${id}/code_snapshot.json`,
-    getArchiveContent: async () => '{}',
-    deleteArchive: async () => {},
-};
 
 const tempDir = mkdtempSync(join(tmpdir(), 'codetv-stream-'));
 const testDbPath = join(tempDir, 'test.db');
@@ -33,8 +26,6 @@ async function createTestApp() {
     })
         .overrideProvider(DATABASE)
         .useValue(testDb)
-        .overrideProvider(StorageService)
-        .useValue(mockStorage)
         .compile();
 
     const app = moduleRef.createNestApplication();
@@ -109,7 +100,7 @@ describe('StreamController', () => {
         });
         expect(closeRes.status).toBe(201);
         const closed = await closeRes.json();
-        expect(closed.s3Key).toContain(created.id);
+        expect(closed.streamId).toBe(created.id);
 
         const getRes = await fetch(`http://127.0.0.1:${port}/_api/streams/${created.id}`);
         const stream = await getRes.json();

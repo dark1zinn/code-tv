@@ -9,8 +9,6 @@ import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import { DATABASE } from '../database/database.module';
 import { profiles, streams, workspaces } from '../database/schema';
 import * as schema from '../database/schema';
-import { StorageService } from '../storage/storage.service';
-import { WorkspaceService } from '../workspace/workspace.service';
 import {
     parseWorkspaceTags,
     primaryEditorLanguage,
@@ -19,11 +17,7 @@ import { generateStreamSlug } from './stream.utils';
 
 @Injectable()
 export class StreamService {
-    constructor(
-        @Inject(DATABASE) private readonly db: BunSQLiteDatabase<typeof schema>,
-        private readonly storageService: StorageService,
-        private readonly workspaceService: WorkspaceService,
-    ) {}
+    constructor(@Inject(DATABASE) private readonly db: BunSQLiteDatabase<typeof schema>) {}
 
     async createStream(
         hostIp: string,
@@ -126,32 +120,13 @@ export class StreamService {
         return stream ?? null;
     }
 
-    async endStream(streamId: string, hostIp: string, latestCodeSnapshot?: string) {
+    async endStream(streamId: string, hostIp: string) {
         const stream = await this.assertHost(streamId, hostIp);
         if (!stream.isLive) {
-            return { streamId, s3Key: stream.s3Key ?? null };
+            return { streamId };
         }
 
-        let snapshot: string;
-        if (stream.workspaceId) {
-            const files = await this.workspaceService.getFilesForArchive(stream.workspaceId);
-            snapshot = JSON.stringify({
-                files,
-                language: stream.language,
-                closedAt: Date.now(),
-            });
-        } else {
-            snapshot =
-                latestCodeSnapshot ??
-                JSON.stringify({ roomSlug: streamId, closedAt: Date.now() });
-        }
-
-        const s3Key = await this.storageService.uploadArchive(streamId, snapshot);
-        await this.closeStream(streamId, s3Key);
-        return { streamId, s3Key };
-    }
-
-    async closeStream(streamId: string, s3Key: string) {
-        await this.db.update(streams).set({ isLive: false, s3Key }).where(eq(streams.id, streamId));
+        await this.db.update(streams).set({ isLive: false }).where(eq(streams.id, streamId));
+        return { streamId };
     }
 }

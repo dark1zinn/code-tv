@@ -54,7 +54,7 @@ export function LivePage() {
                 username={username}
                 onUsernameChange={setUsername}
                 connected={chatEnabled ? connected : undefined}
-                badge={mode === 'replay' ? 'Replay' : undefined}
+                badge={mode === 'replay' ? 'Saved' : undefined}
             />
             <EditorWorkspace
                 language={session.language}

@@ -41,8 +41,6 @@ export class StreamGateway implements OnGatewayConnection {
     private readonly ephemeralChatBuffer = new Map<string, MessagePayload[]>();
     private readonly roomHosts = new Map<string, string>();
     private readonly socketProfiles = new Map<string, { ipHash: string; username: string }>();
-    private readonly latestCodeSnapshots = new Map<string, string>();
-
     constructor(
         private readonly streamService: StreamService,
         private readonly profileService: ProfileService,
@@ -130,7 +128,6 @@ export class StreamGateway implements OnGatewayConnection {
             return { error: 'forbidden' };
         }
 
-        this.latestCodeSnapshots.set(payload.roomSlug, payload.fileValueString);
         client.to(payload.roomSlug).emit('code:stream', payload);
         return { ok: true };
     }
@@ -170,17 +167,11 @@ export class StreamGateway implements OnGatewayConnection {
             return { error: 'forbidden' };
         }
 
-        const snapshot = this.latestCodeSnapshots.get(roomSlug);
-        const result = await this.streamService.endStream(
-            roomSlug,
-            profile.ipHash,
-            snapshot,
-        );
+        const result = await this.streamService.endStream(roomSlug, profile.ipHash);
 
         this.ephemeralChatBuffer.delete(roomSlug);
         this.roomHosts.delete(roomSlug);
-        this.latestCodeSnapshots.delete(roomSlug);
-        this.server.to(roomSlug).emit('room:closed', { roomSlug, s3Key: result.s3Key });
-        return { roomSlug, s3Key: result.s3Key };
+        this.server.to(roomSlug).emit('room:closed', { roomSlug });
+        return { roomSlug, streamId: result.streamId };
     }
 }
