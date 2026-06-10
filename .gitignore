@@ -1,2 +1,17 @@
 # Nix
 .direnv
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local data
+server/data/
+
+# Environment
+.env
+
+# Lock artifacts
+bun.lockb
