@@ -2,14 +2,14 @@ import { useCallback, useState } from 'react';
 
 export type SidebarAlignment = 'left' | 'right';
 
-export interface WorkspaceLayoutMatrix {
+export interface EditorLayoutMatrix {
     explorerVisible: boolean;
     explorerPosition: SidebarAlignment;
     chatVisible: boolean;
     chatPosition: SidebarAlignment;
 }
 
-const defaultLayout: WorkspaceLayoutMatrix = {
+const defaultLayout: EditorLayoutMatrix = {
     explorerVisible: true,
     explorerPosition: 'left',
     chatVisible: true,
@@ -18,7 +18,7 @@ const defaultLayout: WorkspaceLayoutMatrix = {
 
 export function getOrderClass(
     component: 'explorer' | 'editor' | 'chat',
-    state: WorkspaceLayoutMatrix,
+    state: EditorLayoutMatrix,
 ): string {
     if (component === 'explorer' && state.explorerVisible) {
         return state.explorerPosition === 'left' ? 'order-1' : 'order-4';
@@ -29,8 +29,8 @@ export function getOrderClass(
     return 'order-3 flex-1';
 }
 
-export function useWorkspaceLayout(initial: WorkspaceLayoutMatrix = defaultLayout) {
-    const [layout, setLayout] = useState(initial);
+export function useEditorLayout(initial: Partial<EditorLayoutMatrix> = {}) {
+    const [layout, setLayout] = useState<EditorLayoutMatrix>({ ...defaultLayout, ...initial });
 
     const toggleExplorer = useCallback(() => {
         setLayout((current) => ({ ...current, explorerVisible: !current.explorerVisible }));

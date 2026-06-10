@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { getOrderClass, type WorkspaceLayoutMatrix } from './useWorkspaceLayout';
+import { getOrderClass, type EditorLayoutMatrix } from './useEditorLayout';
 
-const base: WorkspaceLayoutMatrix = {
+const base: EditorLayoutMatrix = {
     explorerVisible: true,
     explorerPosition: 'left',
     chatVisible: true,
