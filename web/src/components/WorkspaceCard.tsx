@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
-import { WorkspaceTagsEditor } from '@/components/WorkspaceTagsEditor';
+import {
+    WorkspaceEditDialog,
+    type WorkspaceSummary,
+} from '@/components/WorkspaceEditDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,15 +15,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
-export interface WorkspaceSummary {
-    id: string;
-    title: string;
-    tags: string[];
-    updatedAt: string;
-}
+export type { WorkspaceSummary };
 
 interface WorkspaceCardProps {
     workspace: WorkspaceSummary;
@@ -32,39 +28,10 @@ export function WorkspaceCard({ workspace, onUpdated, onDeleted }: WorkspaceCard
     const navigate = useNavigate();
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
-    const [title, setTitle] = useState(workspace.title);
-    const [tags, setTags] = useState(workspace.tags);
-    const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
-
-    useEffect(() => {
-        if (!editOpen) return;
-        setTitle(workspace.title);
-        setTags(workspace.tags);
-    }, [editOpen, workspace.title, workspace.tags]);
 
     const openEditor = () => {
         navigate(`/code/${workspace.id}`);
-    };
-
-    const saveEdit = async () => {
-        setSaving(true);
-        try {
-            const response = await fetch(`/_api/workspaces/${workspace.id}`, {
-                method: 'PATCH',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    title: title.trim() || 'Untitled Workspace',
-                    tags,
-                }),
-            });
-            if (!response.ok) return;
-            const updated = (await response.json()) as WorkspaceSummary;
-            onUpdated(updated);
-            setEditOpen(false);
-        } finally {
-            setSaving(false);
-        }
     };
 
     const confirmDelete = async () => {
@@ -141,50 +108,14 @@ export function WorkspaceCard({ workspace, onUpdated, onDeleted }: WorkspaceCard
                 </CardContent>
             </Card>
 
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogContent
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
-                >
-                    <DialogHeader>
-                        <DialogTitle>Edit workspace</DialogTitle>
-                        <DialogDescription>
-                            Update the title and tags for this workspace.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor={`workspace-title-${workspace.id}`}>Title</Label>
-                            <Input
-                                id={`workspace-title-${workspace.id}`}
-                                value={title}
-                                onChange={(event) => setTitle(event.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Tags</Label>
-                            <WorkspaceTagsEditor
-                                tags={tags}
-                                onChange={setTags}
-                                disabled={saving}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setEditOpen(false)}
-                                disabled={saving}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="button" onClick={() => void saveEdit()} disabled={saving}>
-                                {saving ? 'Saving...' : 'Save'}
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <WorkspaceEditDialog
+                open={editOpen}
+                onOpenChange={setEditOpen}
+                workspace={workspace}
+                dialogTitle="Edit workspace"
+                dialogDescription="Update the title and tags for this workspace."
+                onSaved={onUpdated}
+            />
 
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <DialogContent

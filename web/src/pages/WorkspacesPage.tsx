@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppNavbar } from '@/components/AppNavbar';
-import { WorkspaceCard, type WorkspaceSummary } from '@/components/WorkspaceCard';
+import { WorkspaceCard } from '@/components/WorkspaceCard';
+import {
+    WorkspaceEditDialog,
+    type WorkspaceSummary,
+} from '@/components/WorkspaceEditDialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -10,6 +14,7 @@ export function WorkspacesPage() {
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [username, setUsername] = useState('Connecting...');
     const [creating, setCreating] = useState(false);
+    const [setupWorkspace, setSetupWorkspace] = useState<WorkspaceSummary | null>(null);
 
     const load = async () => {
         const [profileRes, workspacesRes] = await Promise.all([
@@ -33,11 +38,27 @@ export function WorkspacesPage() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({}),
             });
-            const workspace = (await response.json()) as { id: string };
-            navigate(`/code/${workspace.id}`);
+            if (!response.ok) return;
+            const workspace = (await response.json()) as WorkspaceSummary;
+            setSetupWorkspace(workspace);
         } finally {
             setCreating(false);
         }
+    };
+
+    const abortSetup = async (workspaceId: string) => {
+        await fetch(`/_api/workspaces/${workspaceId}`, { method: 'DELETE' });
+    };
+
+    const handleSetupSaved = (workspace: WorkspaceSummary) => {
+        setWorkspaces((current) => [workspace, ...current]);
+        setSetupWorkspace(null);
+        navigate(`/code/${workspace.id}`);
+    };
+
+    const handleSetupDismissed = () => {
+        if (!setupWorkspace) return;
+        void abortSetup(setupWorkspace.id);
     };
 
     const handleUpdated = (updated: WorkspaceSummary) => {
@@ -56,7 +77,11 @@ export function WorkspacesPage() {
             <main className="flex-1 overflow-hidden p-6">
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-xl font-semibold">Your Workspaces</h2>
-                    <Button type="button" onClick={() => void createWorkspace()} disabled={creating}>
+                    <Button
+                        type="button"
+                        onClick={() => void createWorkspace()}
+                        disabled={creating || setupWorkspace !== null}
+                    >
                         {creating ? 'Creating...' : 'New Workspace'}
                     </Button>
                 </div>
@@ -79,6 +104,21 @@ export function WorkspacesPage() {
                     )}
                 </ScrollArea>
             </main>
+
+            {setupWorkspace && (
+                <WorkspaceEditDialog
+                    open={!!setupWorkspace}
+                    onOpenChange={(open) => {
+                        if (!open) setSetupWorkspace(null);
+                    }}
+                    workspace={setupWorkspace}
+                    dialogTitle="Set up workspace"
+                    dialogDescription="Name your workspace and add tags before opening the editor."
+                    saveLabel="Save & open"
+                    onSaved={handleSetupSaved}
+                    onDismiss={handleSetupDismissed}
+                />
+            )}
         </div>
     );
 }
