@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/BrandLogo';
 import { ProfileDialog } from '@/components/ProfileDialog';
 import { ShareLinkButton } from '@/components/ShareLinkButton';
 
@@ -39,6 +40,13 @@ export function AppNavbar({
         navigate('/');
     };
 
+    const brandMark = (
+        <>
+            <BrandLogo />
+            <span>CodeTV</span>
+        </>
+    );
+
     return (
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
             <div className="flex items-center gap-3">
@@ -46,13 +54,16 @@ export function AppNavbar({
                     <button
                         type="button"
                         onClick={handleHomeClick}
-                        className="text-lg font-semibold text-primary hover:underline"
+                        className="flex items-center gap-2 text-lg font-semibold text-primary hover:underline"
                     >
-                        CodeTV
+                        {brandMark}
                     </button>
                 ) : (
-                    <Link to="/" className="text-lg font-semibold text-primary">
-                        CodeTV
+                    <Link
+                        to="/"
+                        className="flex items-center gap-2 text-lg font-semibold text-primary"
+                    >
+                        {brandMark}
                     </Link>
                 )}
                 <span className="text-sm text-muted-foreground">{username}</span>
