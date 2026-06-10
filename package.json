@@ -1,0 +1,25 @@
+{
+    "name": "codetv-workspace",
+    "private": true,
+    "workspaces": [
+        "web",
+        "server"
+    ],
+    "scripts": {
+        "dev:server": "bun --filter server dev",
+        "dev:web": "bun --filter web dev",
+        "dev:s3": "docker compose -f docker-compose.dev.yml up -d",
+        "build:web": "bun --filter web build",
+        "build:server": "bun --filter server build",
+        "compile": "bun run build:web && bun run build:server",
+        "start": "bun --filter server start",
+        "test": "bun run test:server && bun run test:web",
+        "test:server": "bun --filter server test",
+        "test:web": "bun --filter web test",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "prettier": "^3.4.2"
+    }
+}
