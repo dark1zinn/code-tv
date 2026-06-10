@@ -49,9 +49,6 @@ export class StreamService {
     }
 
     async closeStream(streamId: string, s3Key: string) {
-        await this.db
-            .update(streams)
-            .set({ isLive: false, s3Key })
-            .where(eq(streams.id, streamId));
+        await this.db.update(streams).set({ isLive: false, s3Key }).where(eq(streams.id, streamId));
     }
 }

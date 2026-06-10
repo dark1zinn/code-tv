@@ -25,7 +25,10 @@ const testDb = createDatabase(join(tempDir, 'test.db'));
 
 describe('CleanupService', () => {
     const storage = new MockStorageService();
-    const service = new CleanupService(testDb, storage as unknown as import('../storage/storage.service').StorageService);
+    const service = new CleanupService(
+        testDb,
+        storage as unknown as import('../storage/storage.service').StorageService,
+    );
 
     beforeAll(() => {
         migrateDatabase(testDb);

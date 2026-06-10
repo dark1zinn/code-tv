@@ -104,8 +104,11 @@ describe('StreamGateway', () => {
 
     it('replays chat history on room join', () => {
         const client = createMockSocket('viewer-1', '203.0.113.2');
-        (gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }).ephemeralChatBuffer =
-            new Map([['alpha-bravo-compile', [{ sender: 'Anon-1', text: 'hi', timestamp: 1 }]]]);
+        (
+            gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }
+        ).ephemeralChatBuffer = new Map([
+            ['alpha-bravo-compile', [{ sender: 'Anon-1', text: 'hi', timestamp: 1 }]],
+        ]);
 
         const result = gateway.handleRoomJoin(client as Socket, 'alpha-bravo-compile');
         expect(result.history).toHaveLength(1);
@@ -153,8 +156,9 @@ describe('StreamGateway', () => {
             gateway.handleChatSend(client as Socket, { roomSlug: room, messageText: `msg-${i}` });
         }
 
-        const buffer = (gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> })
-            .ephemeralChatBuffer.get(room);
+        const buffer = (
+            gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }
+        ).ephemeralChatBuffer.get(room);
         expect(buffer).toHaveLength(50);
         expect((buffer?.[0] as { text: string }).text).toBe('msg-1');
     });
@@ -165,16 +169,17 @@ describe('StreamGateway', () => {
             'host-1',
             { ipHash: hostIp, username: 'Host' },
         );
-        (gateway as unknown as { roomHosts: Map<string, string> }).roomHosts.set('close-room', hostIp);
+        (gateway as unknown as { roomHosts: Map<string, string> }).roomHosts.set(
+            'close-room',
+            hostIp,
+        );
         streams.set('close-room', { hostIp, isLive: true });
-        (gateway as unknown as { latestCodeSnapshots: Map<string, string> }).latestCodeSnapshots.set(
-            'close-room',
-            'export {};',
-        );
-        (gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }).ephemeralChatBuffer.set(
-            'close-room',
-            [],
-        );
+        (
+            gateway as unknown as { latestCodeSnapshots: Map<string, string> }
+        ).latestCodeSnapshots.set('close-room', 'export {};');
+        (
+            gateway as unknown as { ephemeralChatBuffer: Map<string, unknown[]> }
+        ).ephemeralChatBuffer.set('close-room', []);
 
         const result = await gateway.handleRoomClose(host as Socket, 'close-room');
         expect(result.s3Key).toContain('close-room');

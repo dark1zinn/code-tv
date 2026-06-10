@@ -55,10 +55,7 @@ export class StreamGateway implements OnGatewayConnection {
     }
 
     @SubscribeMessage('room:create')
-    async handleRoomCreate(
-        @ConnectedSocket() client: Socket,
-        @MessageBody() roomSlug: string,
-    ) {
+    async handleRoomCreate(@ConnectedSocket() client: Socket, @MessageBody() roomSlug: string) {
         const profile = this.socketProfiles.get(client.id);
         if (!profile) return { error: 'unauthenticated' };
 

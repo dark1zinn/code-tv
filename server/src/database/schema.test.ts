@@ -42,7 +42,10 @@ describe('schema', () => {
             createdAt: new Date(),
         });
 
-        const [stream] = await db.select().from(streams).where(eq(streams.id, 'alpha-foxtrot-compile'));
+        const [stream] = await db
+            .select()
+            .from(streams)
+            .where(eq(streams.id, 'alpha-foxtrot-compile'));
         expect(stream?.hostIp).toBe(ipHash);
         expect(stream?.isLive).toBe(true);
     });
