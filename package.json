@@ -13,7 +13,7 @@
         "build:server": "bun --filter server build",
         "compile": "bun run build:web && bun run build:server",
         "start": "bun --filter server start",
-        "test": "bun run test:server && bun run test:web",
+        "test": "bun test",
         "test:server": "bun --filter server test",
         "test:web": "bun --filter web test",
         "format": "prettier --write .",

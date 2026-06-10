@@ -7,27 +7,18 @@ const bucket = process.env.S3_BUCKET ?? 'codetv-dev';
 const accessKeyId = process.env.S3_ACCESS_KEY_ID ?? 'rustfsadmin';
 const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY ?? 'rustfsadmin';
 
-async function isRustfsReachable(): Promise<boolean> {
+async function createBucketIfNeeded(client: S3Client): Promise<void> {
     try {
-        const response = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(2000) });
-        return response.ok;
+        await fetch(`${endpoint}/${bucket}`, { method: 'PUT' });
     } catch {
-        return false;
+        // rustfs may not support this endpoint; first write may still succeed
     }
 }
 
-const rustfsUp = await isRustfsReachable();
-const describeIfRustfs = rustfsUp ? describe : describe.skip;
-
-describeIfRustfs('StorageService', () => {
-    let service: StorageService;
-
-    beforeAll(async () => {
-        process.env.S3_ENDPOINT = endpoint;
-        process.env.S3_BUCKET = bucket;
-        process.env.S3_ACCESS_KEY_ID = accessKeyId;
-        process.env.S3_SECRET_ACCESS_KEY = secretAccessKey;
-        process.env.S3_REGION = 'us-east-1';
+async function isS3Ready(): Promise<boolean> {
+    try {
+        const health = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(2000) });
+        if (!health.ok) return false;
 
         const client = new S3Client({
             accessKeyId,
@@ -37,11 +28,29 @@ describeIfRustfs('StorageService', () => {
             region: 'us-east-1',
         });
 
-        try {
-            await client.write('.keep', '', { type: 'text/plain' });
-        } catch {
-            // bucket may already exist or auto-create on first write
-        }
+        await createBucketIfNeeded(client);
+
+        const probeKey = `__probe-${Date.now()}`;
+        await client.write(probeKey, 'ok');
+        await client.delete(probeKey);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+const s3Ready = await isS3Ready();
+const describeIfS3 = s3Ready ? describe : describe.skip;
+
+describeIfS3('StorageService', () => {
+    let service: StorageService;
+
+    beforeAll(async () => {
+        process.env.S3_ENDPOINT = endpoint;
+        process.env.S3_BUCKET = bucket;
+        process.env.S3_ACCESS_KEY_ID = accessKeyId;
+        process.env.S3_SECRET_ACCESS_KEY = secretAccessKey;
+        process.env.S3_REGION = 'us-east-1';
 
         service = new StorageService();
     });

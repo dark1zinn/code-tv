@@ -13,7 +13,7 @@ export function useKeyboardShortcuts({ toggleExplorer, focusChat }: ShortcutHand
                 toggleExplorer();
             }
 
-            if (event.ctrlKey && event.key === '`') {
+            if (event.ctrlKey && event.key === '/') {
                 event.preventDefault();
                 focusChat();
             }
