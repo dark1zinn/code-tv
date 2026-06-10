@@ -8,6 +8,10 @@ import { StorageService } from './storage.service';
 })
 export class StorageModule implements OnModuleInit {
     async onModuleInit() {
-        await ensureBucket(createS3Client());
+        try {
+            await ensureBucket(createS3Client());
+        } catch {
+            // S3 may be unavailable during local dev or tests
+        }
     }
 }

@@ -21,6 +21,11 @@ export class StreamController {
         return this.streamService.listLiveStreams();
     }
 
+    @Post(':id/close')
+    async closeStream(@Req() req: IdentityRequest, @Param('id') id: string) {
+        return this.streamService.endStream(id, req.ipHash!);
+    }
+
     @Get(':id')
     async getStream(@Param('id') id: string) {
         return this.streamService.getStream(id);

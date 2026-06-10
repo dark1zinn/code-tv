@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ProfileDialog } from '@/components/ProfileDialog';
@@ -10,6 +10,7 @@ interface AppNavbarProps {
     connected?: boolean;
     badge?: string;
     onStopStreaming?: () => void;
+    onLeaveHosting?: () => void | Promise<void>;
 }
 
 export function AppNavbar({
@@ -18,8 +19,10 @@ export function AppNavbar({
     connected,
     badge,
     onStopStreaming,
+    onLeaveHosting,
 }: AppNavbarProps) {
     const location = useLocation();
+    const navigate = useNavigate();
     const { workspaceId } = useParams();
     const isLive = location.pathname === '/live';
     const isCode = location.pathname.startsWith('/code/');
@@ -28,12 +31,30 @@ export function AppNavbar({
     const showGoLive = isHome || isLive;
     const showStop = isCode && onStopStreaming;
 
+    const handleHomeClick = () => {
+        if (isCode && onLeaveHosting) {
+            void Promise.resolve(onLeaveHosting()).then(() => navigate('/'));
+            return;
+        }
+        navigate('/');
+    };
+
     return (
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
             <div className="flex items-center gap-3">
-                <Link to="/" className="text-lg font-semibold text-primary">
-                    CodeTV
-                </Link>
+                {isCode && onLeaveHosting ? (
+                    <button
+                        type="button"
+                        onClick={handleHomeClick}
+                        className="text-lg font-semibold text-primary hover:underline"
+                    >
+                        CodeTV
+                    </button>
+                ) : (
+                    <Link to="/" className="text-lg font-semibold text-primary">
+                        CodeTV
+                    </Link>
+                )}
                 <span className="text-sm text-muted-foreground">{username}</span>
                 {badge && <Badge variant="secondary">{badge}</Badge>}
                 {connected !== undefined && (

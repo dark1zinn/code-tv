@@ -23,10 +23,10 @@ export function useLiveRoute() {
     const watchId = searchParams.get('w');
     const replayId = searchParams.get('r');
     const workspaceId = watchId ?? replayId;
-    const requestedMode: LiveMode | null = watchId ? 'watch' : replayId ? 'replay' : null;
+    const mode: LiveMode | null = watchId ? 'watch' : replayId ? 'replay' : null;
 
     useEffect(() => {
-        if (!workspaceId || !requestedMode) {
+        if (!workspaceId || !mode) {
             navigate('/', { replace: true });
             return;
         }
@@ -36,6 +36,8 @@ export function useLiveRoute() {
         async function load() {
             setLoading(true);
             setError(null);
+            setViewer(null);
+
             try {
                 const response = await fetch(`/_api/workspaces/${workspaceId}/viewer`);
                 if (!response.ok) throw new Error('not_found');
@@ -43,11 +45,11 @@ export function useLiveRoute() {
 
                 if (cancelled) return;
 
-                if (requestedMode === 'watch' && !data.isLive) {
+                if (mode === 'watch' && !data.isLive) {
                     navigate(`/live?r=${workspaceId}`, { replace: true });
                     return;
                 }
-                if (requestedMode === 'replay' && data.isLive) {
+                if (mode === 'replay' && data.isLive) {
                     navigate(`/live?w=${workspaceId}`, { replace: true });
                     return;
                 }
@@ -67,14 +69,7 @@ export function useLiveRoute() {
         return () => {
             cancelled = true;
         };
-    }, [workspaceId, requestedMode, navigate]);
-
-    const mode: LiveMode | null =
-        viewer && requestedMode
-            ? viewer.isLive
-                ? 'watch'
-                : 'replay'
-            : requestedMode;
+    }, [workspaceId, mode, navigate]);
 
     return { workspaceId, mode, viewer, loading, error };
 }

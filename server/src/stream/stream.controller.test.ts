@@ -10,7 +10,14 @@ import { migrateDatabase } from '../database/migrate';
 import { IdentityMiddleware } from '../identity/identity.middleware';
 import { hashIpAddress } from '../identity/ip-hash';
 import { ProfileModule } from '../profile/profile.module';
+import { StorageService } from '../storage/storage.service';
 import { StreamModule } from './stream.module';
+
+const mockStorage = {
+    uploadArchive: async (id: string) => `pastes/${id}/code_snapshot.json`,
+    getArchiveContent: async () => '{}',
+    deleteArchive: async () => {},
+};
 
 const tempDir = mkdtempSync(join(tmpdir(), 'codetv-stream-'));
 const testDbPath = join(tempDir, 'test.db');
@@ -26,6 +33,8 @@ async function createTestApp() {
     })
         .overrideProvider(DATABASE)
         .useValue(testDb)
+        .overrideProvider(StorageService)
+        .useValue(mockStorage)
         .compile();
 
     const app = moduleRef.createNestApplication();
@@ -81,5 +90,29 @@ describe('StreamController', () => {
         const body = await response.json();
         expect(Array.isArray(body)).toBe(true);
         expect(body.length).toBeGreaterThan(0);
+    });
+
+    it('closes a live stream for the host', async () => {
+        const createRes = await fetch(`http://127.0.0.1:${port}/_api/streams`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': hostIp,
+            },
+            body: JSON.stringify({ title: 'To Close', language: 'typescript' }),
+        });
+        const created = await createRes.json();
+
+        const closeRes = await fetch(`http://127.0.0.1:${port}/_api/streams/${created.id}/close`, {
+            method: 'POST',
+            headers: { 'x-forwarded-for': hostIp },
+        });
+        expect(closeRes.status).toBe(201);
+        const closed = await closeRes.json();
+        expect(closed.s3Key).toContain(created.id);
+
+        const getRes = await fetch(`http://127.0.0.1:${port}/_api/streams/${created.id}`);
+        const stream = await getRes.json();
+        expect(stream.isLive).toBe(false);
     });
 });

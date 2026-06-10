@@ -11,13 +11,16 @@ export function LivePage() {
     const { viewer, mode, loading } = useLiveRoute();
     const [username, setUsername] = useState('Viewer');
 
-    const chatEnabled = mode === 'watch';
+    const chatEnabled = mode === 'watch' && viewer?.isLive === true;
     const { layout, toggleExplorer, toggleChat, setLayout } = useEditorLayout({
-        chatVisible: chatEnabled,
+        chatVisible: false,
     });
 
     useEffect(() => {
-        setLayout((current) => ({ ...current, chatVisible: chatEnabled }));
+        setLayout((current) => ({
+            ...current,
+            chatVisible: chatEnabled,
+        }));
     }, [chatEnabled, setLayout]);
 
     useEffect(() => {
@@ -26,7 +29,13 @@ export function LivePage() {
             .then((body: { username: string }) => setUsername(body.username));
     }, []);
 
-    const session = useLiveSession(viewer, mode, emit, on, connected && mode === 'watch');
+    const session = useLiveSession(
+        viewer,
+        mode,
+        emit,
+        on,
+        connected && chatEnabled,
+    );
 
     if (loading || !viewer || !mode) {
         return (
@@ -44,7 +53,7 @@ export function LivePage() {
             <AppNavbar
                 username={username}
                 onUsernameChange={setUsername}
-                connected={mode === 'watch' ? connected : undefined}
+                connected={chatEnabled ? connected : undefined}
                 badge={mode === 'replay' ? 'Replay' : undefined}
             />
             <EditorWorkspace
@@ -64,7 +73,7 @@ export function LivePage() {
                 onManualInteraction={() => session.setIsFollowingHost(false)}
                 onSendChat={(text) => void session.sendChat(text)}
                 onFollowHost={() => session.setIsFollowingHost(true)}
-                showFollowHost={mode === 'watch' && !session.isFollowingHost}
+                showFollowHost={session.isWatchMode && !session.isFollowingHost}
             />
         </div>
     );

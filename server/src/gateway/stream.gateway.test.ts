@@ -82,10 +82,16 @@ describe('StreamGateway', () => {
                     stream.s3Key = s3Key;
                 }
             },
-        };
-
-        const workspaceService = {
-            getFilesForArchive: async () => [{ path: 'src/main.ts', content: 'export {};\n' }],
+            endStream: async (streamId: string, _hostIp: string) => {
+                const key = `pastes/${streamId}/code_snapshot.json`;
+                const stream = streams.get(streamId);
+                if (stream) {
+                    stream.isLive = false;
+                    stream.s3Key = key;
+                }
+                uploaded.set(key, 'export {};');
+                return { streamId, s3Key: key };
+            },
         };
 
         const profileService = {
@@ -98,12 +104,7 @@ describe('StreamGateway', () => {
             },
         };
 
-        gateway = new StreamGateway(
-            streamService as never,
-            mockStorage as never,
-            profileService as never,
-            workspaceService as never,
-        );
+        gateway = new StreamGateway(streamService as never, profileService as never);
 
         const broadcasted: Array<{ room: string; event: string; payload: unknown }> = [];
         gateway.server = {

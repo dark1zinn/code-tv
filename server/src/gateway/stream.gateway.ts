@@ -7,10 +7,8 @@ import {
     WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { StorageService } from '../storage/storage.service';
 import { StreamService } from '../stream/stream.service';
 import { ProfileService } from '../profile/profile.service';
-import { WorkspaceService } from '../workspace/workspace.service';
 import { extractRawIp, hashIpAddress } from '../identity/ip-hash';
 
 export type MessagePayload = { sender: string; text: string; timestamp: number };
@@ -41,9 +39,7 @@ export class StreamGateway implements OnGatewayConnection {
 
     constructor(
         private readonly streamService: StreamService,
-        private readonly storageService: StorageService,
         private readonly profileService: ProfileService,
-        private readonly workspaceService: WorkspaceService,
     ) {}
 
     async handleConnection(client: Socket) {
@@ -163,34 +159,17 @@ export class StreamGateway implements OnGatewayConnection {
             return { error: 'forbidden' };
         }
 
-        let snapshot: string;
-        try {
-            const stream = await this.streamService.getStream(roomSlug);
-            if (stream.workspaceId) {
-                const files = await this.workspaceService.getFilesForArchive(stream.workspaceId);
-                snapshot = JSON.stringify({
-                    files,
-                    language: stream.language,
-                    closedAt: Date.now(),
-                });
-            } else {
-                snapshot =
-                    this.latestCodeSnapshots.get(roomSlug) ??
-                    JSON.stringify({ roomSlug, closedAt: Date.now() });
-            }
-        } catch {
-            snapshot =
-                this.latestCodeSnapshots.get(roomSlug) ??
-                JSON.stringify({ roomSlug, closedAt: Date.now() });
-        }
-
-        const s3Key = await this.storageService.uploadArchive(roomSlug, snapshot);
-        await this.streamService.closeStream(roomSlug, s3Key);
+        const snapshot = this.latestCodeSnapshots.get(roomSlug);
+        const result = await this.streamService.endStream(
+            roomSlug,
+            profile.ipHash,
+            snapshot,
+        );
 
         this.ephemeralChatBuffer.delete(roomSlug);
         this.roomHosts.delete(roomSlug);
         this.latestCodeSnapshots.delete(roomSlug);
-        this.server.to(roomSlug).emit('room:closed', { roomSlug, s3Key });
-        return { roomSlug, s3Key };
+        this.server.to(roomSlug).emit('room:closed', { roomSlug, s3Key: result.s3Key });
+        return { roomSlug, s3Key: result.s3Key };
     }
 }

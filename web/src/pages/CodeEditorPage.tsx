@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppNavbar } from '@/components/AppNavbar';
 import { EditorWorkspace } from '@/components/EditorWorkspace';
 import { useSocketContext } from '@/context/SocketContext';
 import { useEditorLayout } from '@/hooks/useEditorLayout';
 import { useHostSession, type WorkspaceData } from '@/hooks/useHostSession';
+import { closeStreamById } from '@/lib/stream';
 
 export function CodeEditorPage() {
     const { workspaceId } = useParams();
@@ -15,7 +16,25 @@ export function CodeEditorPage() {
     const [streamId, setStreamId] = useState<string | null>(null);
     const [username, setUsername] = useState('Host');
     const started = useRef(false);
+    const streamIdRef = useRef<string | null>(null);
     const cursorRef = useRef({ line: 1, column: 1 });
+
+    useEffect(() => {
+        streamIdRef.current = streamId;
+    }, [streamId]);
+
+    const endHosting = useCallback(async () => {
+        const id = streamIdRef.current;
+        if (!id) return;
+        streamIdRef.current = null;
+        setStreamId(null);
+        await closeStreamById(id);
+        try {
+            await emit('room:close', id);
+        } catch {
+            // REST close is authoritative
+        }
+    }, [emit]);
 
     useEffect(() => {
         if (!workspaceId) return;
@@ -41,16 +60,31 @@ export function CodeEditorPage() {
                     }),
                 }).then((r) => r.json())) as { id: string };
                 setStreamId(stream.id);
+                streamIdRef.current = stream.id;
             }
         }
 
         void bootstrap();
+
+        return () => {
+            started.current = false;
+            const id = streamIdRef.current;
+            if (id) {
+                streamIdRef.current = null;
+                void closeStreamById(id);
+            }
+        };
     }, [workspaceId]);
 
     const session = useHostSession(workspace, streamId, emit, on, connected);
 
     const handleStop = async () => {
-        await session.stopStreaming();
+        await endHosting();
+        navigate('/');
+    };
+
+    const handleLeaveHosting = async () => {
+        await endHosting();
         navigate('/');
     };
 
@@ -72,6 +106,7 @@ export function CodeEditorPage() {
                 onUsernameChange={setUsername}
                 connected={connected}
                 onStopStreaming={() => void handleStop()}
+                onLeaveHosting={() => handleLeaveHosting()}
             />
             <EditorWorkspace
                 language={session.language}

@@ -10,6 +10,8 @@ export function useLiveSession(
     on: (event: string, handler: (payload: unknown) => void) => () => void,
     connected: boolean,
 ) {
+    const isWatchMode = mode === 'watch' && viewer?.isLive === true;
+
     const { nodes, fileMap } = useMemo(
         () => flatFilesToTree(viewer?.files ?? []),
         [viewer?.files],
@@ -27,15 +29,19 @@ export function useLiveSession(
         const id = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
         setActiveFileId(id);
         setCode(fileMap[id] ?? 'export {}\n');
-    }, [viewer, fileMap]);
+        if (!isWatchMode) {
+            setMessages([]);
+            setIsFollowingHost(false);
+        }
+    }, [viewer, fileMap, isWatchMode]);
 
     useEffect(() => {
-        if (mode !== 'watch' || !connected || !viewer?.streamId) return;
+        if (!isWatchMode || !connected || !viewer?.streamId) return;
         void emit('room:join', viewer.streamId);
-    }, [mode, connected, viewer?.streamId, emit]);
+    }, [isWatchMode, connected, viewer?.streamId, emit]);
 
     useEffect(() => {
-        if (mode !== 'watch') return;
+        if (!isWatchMode) return;
 
         const unsubHistory = on('chat:history', (history) => {
             setMessages(history as ChatMessage[]);
@@ -58,23 +64,23 @@ export function useLiveSession(
             unsubMessage();
             unsubCode();
         };
-    }, [mode, on, isFollowingHost]);
+    }, [isWatchMode, on, isFollowingHost]);
 
     const sendChat = useCallback(
         async (text: string) => {
-            if (!viewer?.streamId) return;
+            if (!isWatchMode || !viewer?.streamId) return;
             await emit('chat:send', { roomSlug: viewer.streamId, messageText: text });
         },
-        [emit, viewer?.streamId],
+        [emit, viewer?.streamId, isWatchMode],
     );
 
     const selectFile = useCallback(
         (fileId: string) => {
             setActiveFileId(fileId);
             setCode(fileMap[fileId] ?? '');
-            setIsFollowingHost(false);
+            if (isWatchMode) setIsFollowingHost(false);
         },
-        [fileMap],
+        [fileMap, isWatchMode],
     );
 
     return {
@@ -88,5 +94,6 @@ export function useLiveSession(
         selectFile,
         sendChat,
         readOnly: true,
+        isWatchMode,
     };
 }
