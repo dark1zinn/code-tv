@@ -5,6 +5,7 @@ export const profiles = sqliteTable('profiles', {
     username: text('username').default('Anonymous Coder').notNull(),
     githubLink: text('github_link'),
     youtubeLink: text('youtube_link'),
+    chatColor: text('chat_color').default('#58a6ff').notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' })
         .$defaultFn(() => new Date())
         .notNull(),

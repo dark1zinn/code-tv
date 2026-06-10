@@ -8,6 +8,7 @@ export function migrateDatabase(db: BunSQLiteDatabase<typeof schema>) {
             username TEXT NOT NULL DEFAULT 'Anonymous Coder',
             github_link TEXT,
             youtube_link TEXT,
+            chat_color TEXT NOT NULL DEFAULT '#58a6ff',
             updated_at INTEGER NOT NULL,
             created_at INTEGER NOT NULL
         );
@@ -44,6 +45,16 @@ export function migrateDatabase(db: BunSQLiteDatabase<typeof schema>) {
     const hasWorkspaceId = streamColumns.some((col) => col.name === 'workspace_id');
     if (!hasWorkspaceId) {
         db.$client.exec(`ALTER TABLE streams ADD COLUMN workspace_id TEXT REFERENCES workspaces(id) ON DELETE SET NULL`);
+    }
+
+    const profileColumns = db.$client
+        .query<{ name: string }, []>('PRAGMA table_info(profiles)')
+        .all();
+    const hasChatColor = profileColumns.some((col) => col.name === 'chat_color');
+    if (!hasChatColor) {
+        db.$client.exec(
+            `ALTER TABLE profiles ADD COLUMN chat_color TEXT NOT NULL DEFAULT '#58a6ff'`,
+        );
     }
 
     const workspaceColumns = db.$client

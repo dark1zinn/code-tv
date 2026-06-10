@@ -4,6 +4,7 @@ export interface ChatMessage {
     sender: string;
     text: string;
     timestamp: number;
+    color?: string;
 }
 
 interface LiveChatProps {
@@ -52,8 +53,13 @@ export function LiveChat({ messages, onSend, visible, onToggle }: LiveChatProps)
             >
                 {messages.map((message) => (
                     <p key={`${message.timestamp}-${message.sender}`} className="mb-2">
-                        <span className="font-semibold text-accent">{message.sender}</span>:{' '}
-                        {message.text}
+                        <span
+                            className="font-semibold"
+                            style={{ color: message.color ?? 'var(--color-accent, #58a6ff)' }}
+                        >
+                            {message.sender}
+                        </span>
+                        : {message.text}
                     </p>
                 ))}
             </div>

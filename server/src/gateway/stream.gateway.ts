@@ -9,9 +9,15 @@ import {
 import { Server, Socket } from 'socket.io';
 import { StreamService } from '../stream/stream.service';
 import { ProfileService } from '../profile/profile.service';
+import { DEFAULT_CHAT_COLOR } from '../profile/profile.utils';
 import { extractRawIp, hashIpAddress } from '../identity/ip-hash';
 
-export type MessagePayload = { sender: string; text: string; timestamp: number };
+export type MessagePayload = {
+    sender: string;
+    text: string;
+    timestamp: number;
+    color: string;
+};
 
 export interface CodeStreamPayload {
     roomSlug: string;
@@ -130,12 +136,17 @@ export class StreamGateway implements OnGatewayConnection {
     }
 
     @SubscribeMessage('chat:send')
-    handleChatSend(@ConnectedSocket() client: Socket, @MessageBody() payload: ChatMessagePayload) {
+    async handleChatSend(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() payload: ChatMessagePayload,
+    ) {
         const profile = this.socketProfiles.get(client.id);
         if (!profile) return { error: 'unauthenticated' };
 
+        const record = await this.profileService.getProfile(profile.ipHash);
         const message: MessagePayload = {
-            sender: profile.username,
+            sender: record?.username ?? profile.username,
+            color: record?.chatColor ?? DEFAULT_CHAT_COLOR,
             text: payload.messageText,
             timestamp: Date.now(),
         };

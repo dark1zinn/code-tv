@@ -76,4 +76,27 @@ describe('ProfileController', () => {
             new Date(first.updatedAt).getTime(),
         );
     });
+
+    it('updates social links and chat color', async () => {
+        const response = await fetch(`http://127.0.0.1:${port}/_api/profile`, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': testIp,
+            },
+            body: JSON.stringify({
+                username: 'CoderOne',
+                githubLink: 'https://github.com/coder',
+                youtubeLink: 'https://youtube.com/@coder',
+                chatColor: '#ff6b6b',
+            }),
+        });
+
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.username).toBe('CoderOne');
+        expect(body.githubLink).toBe('https://github.com/coder');
+        expect(body.youtubeLink).toBe('https://youtube.com/@coder');
+        expect(body.chatColor).toBe('#ff6b6b');
+    });
 });

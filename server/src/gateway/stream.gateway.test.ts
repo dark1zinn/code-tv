@@ -35,7 +35,7 @@ describe('StreamGateway', () => {
     let mockStorage: { uploadArchive: (id: string, content: string) => Promise<string> };
     let uploaded: Map<string, string>;
     let streams: Map<string, { hostIp: string; isLive: boolean; s3Key?: string }>;
-    let profiles: Map<string, { username: string }>;
+    let profiles: Map<string, { username: string; chatColor?: string }>;
     const hostIp = 'host-hash';
     const viewerIp = 'viewer-hash';
 
@@ -97,10 +97,25 @@ describe('StreamGateway', () => {
         const profileService = {
             hydrate: async (ipHash: string) => {
                 const existing = profiles.get(ipHash);
-                if (existing) return { ipAddress: ipHash, username: existing.username };
+                if (existing) {
+                    return {
+                        ipAddress: ipHash,
+                        username: existing.username,
+                        chatColor: existing.chatColor ?? '#58a6ff',
+                    };
+                }
                 const username = `Anon-${Math.floor(1000 + Math.random() * 9000)}`;
-                profiles.set(ipHash, { username });
-                return { ipAddress: ipHash, username };
+                profiles.set(ipHash, { username, chatColor: '#58a6ff' });
+                return { ipAddress: ipHash, username, chatColor: '#58a6ff' };
+            },
+            getProfile: async (ipHash: string) => {
+                const existing = profiles.get(ipHash);
+                if (!existing) return null;
+                return {
+                    ipAddress: ipHash,
+                    username: existing.username,
+                    chatColor: existing.chatColor ?? '#58a6ff',
+                };
             },
         };
 
@@ -168,8 +183,9 @@ describe('StreamGateway', () => {
         expect(emitted[0]).toEqual(payload);
     });
 
-    it('caps chat buffer at 50 messages', () => {
+    it('caps chat buffer at 50 messages', async () => {
         const client = createMockSocket('user-1', '203.0.113.3');
+        profiles.set(viewerIp, { username: 'Chatter', chatColor: '#ff00aa' });
         (gateway as unknown as { socketProfiles: Map<string, unknown> }).socketProfiles.set(
             'user-1',
             { ipHash: viewerIp, username: 'Chatter' },
@@ -177,7 +193,10 @@ describe('StreamGateway', () => {
 
         const room = 'chat-room';
         for (let i = 0; i < 51; i++) {
-            gateway.handleChatSend(client as Socket, { roomSlug: room, messageText: `msg-${i}` });
+            await gateway.handleChatSend(client as Socket, {
+                roomSlug: room,
+                messageText: `msg-${i}`,
+            });
         }
 
         const buffer = (
@@ -185,6 +204,7 @@ describe('StreamGateway', () => {
         ).ephemeralChatBuffer.get(room);
         expect(buffer).toHaveLength(50);
         expect((buffer?.[0] as { text: string }).text).toBe('msg-1');
+        expect((buffer?.at(-1) as { color: string }).color).toBe('#ff00aa');
     });
 
     it('archives code and closes the room', async () => {

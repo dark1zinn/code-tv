@@ -4,7 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 
 const fetchMock = mock(async (url: string) => {
     if (url.includes('/_api/profile')) {
-        return new Response(JSON.stringify({ username: 'Anon-1234' }));
+        return new Response(
+            JSON.stringify({
+                username: 'Anon-1234',
+                githubLink: null,
+                youtubeLink: null,
+                chatColor: '#58a6ff',
+            }),
+        );
     }
     if (url.includes('/_api/streams')) {
         return new Response(JSON.stringify([]));
