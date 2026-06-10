@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test';
-import { S3Client } from 'bun';
+import { createS3Client, ensureBucket } from './s3-client';
 import { StorageService } from './storage.service';
 
 const endpoint = process.env.S3_ENDPOINT ?? 'http://localhost:9000';
@@ -7,32 +7,23 @@ const bucket = process.env.S3_BUCKET ?? 'codetv-dev';
 const accessKeyId = process.env.S3_ACCESS_KEY_ID ?? 'rustfsadmin';
 const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY ?? 'rustfsadmin';
 
-async function createBucketIfNeeded(client: S3Client): Promise<void> {
-    try {
-        await fetch(`${endpoint}/${bucket}`, { method: 'PUT' });
-    } catch {
-        // rustfs may not support this endpoint; first write may still succeed
-    }
-}
-
 async function isS3Ready(): Promise<boolean> {
     try {
         const health = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(2000) });
         if (!health.ok) return false;
 
-        const client = new S3Client({
-            accessKeyId,
-            secretAccessKey,
-            endpoint,
-            bucket,
-            region: 'us-east-1',
-        });
+        process.env.S3_ENDPOINT = endpoint;
+        process.env.S3_BUCKET = bucket;
+        process.env.S3_ACCESS_KEY_ID = accessKeyId;
+        process.env.S3_SECRET_ACCESS_KEY = secretAccessKey;
+        process.env.S3_REGION = 'us-east-1';
 
-        await createBucketIfNeeded(client);
+        const s3 = createS3Client();
+        await ensureBucket(s3);
 
         const probeKey = `__probe-${Date.now()}`;
-        await client.write(probeKey, 'ok');
-        await client.delete(probeKey);
+        await s3.putObject(probeKey, 'ok', 'text/plain');
+        await s3.deleteObject(probeKey);
         return true;
     } catch {
         return false;
@@ -44,14 +35,16 @@ const describeIfS3 = s3Ready ? describe : describe.skip;
 
 describeIfS3('StorageService', () => {
     let service: StorageService;
+    let s3: ReturnType<typeof createS3Client>;
 
-    beforeAll(async () => {
+    beforeAll(() => {
         process.env.S3_ENDPOINT = endpoint;
         process.env.S3_BUCKET = bucket;
         process.env.S3_ACCESS_KEY_ID = accessKeyId;
         process.env.S3_SECRET_ACCESS_KEY = secretAccessKey;
         process.env.S3_REGION = 'us-east-1';
 
+        s3 = createS3Client();
         service = new StorageService();
     });
 
@@ -66,13 +59,6 @@ describeIfS3('StorageService', () => {
         expect(content).toBe(payload);
 
         await service.deleteArchive(s3Key);
-        const client = new S3Client({
-            accessKeyId,
-            secretAccessKey,
-            endpoint,
-            bucket,
-            region: 'us-east-1',
-        });
-        expect(await client.exists(s3Key)).toBe(false);
+        expect(await s3.objectExists(s3Key)).toBe(false);
     });
 });

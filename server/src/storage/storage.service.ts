@@ -1,36 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client } from 'bun';
+import type { S3mini } from 's3mini';
+import { createS3Client } from './s3-client';
 
 @Injectable()
 export class StorageService {
-    private s3Client: S3Client;
-
-    constructor() {
-        this.s3Client = new S3Client({
-            accessKeyId: process.env.S3_ACCESS_KEY_ID,
-            secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-            endpoint: process.env.S3_ENDPOINT,
-            bucket: process.env.S3_BUCKET,
-            region: process.env.S3_REGION ?? 'us-east-1',
-        });
-    }
+    private readonly s3: S3mini = createS3Client();
 
     async uploadArchive(streamId: string, fileContent: string): Promise<string> {
         const s3Key = `pastes/${streamId}/code_snapshot.json`;
-        const s3File = this.s3Client.file(s3Key);
-        await s3File.write(fileContent);
+        await this.s3.putObject(s3Key, fileContent, 'application/json');
         return s3Key;
     }
 
     async deleteArchive(s3Key: string): Promise<void> {
-        const s3File = this.s3Client.file(s3Key);
-        if (await s3File.exists()) {
-            await s3File.delete();
+        if (await this.s3.objectExists(s3Key)) {
+            await this.s3.deleteObject(s3Key);
         }
     }
 
     async getArchiveContent(s3Key: string): Promise<string> {
-        const s3File = this.s3Client.file(s3Key);
-        return await s3File.text();
+        const content = await this.s3.getObject(s3Key);
+        if (content === null) {
+            throw new Error(`Archive not found: ${s3Key}`);
+        }
+        return content;
     }
 }
