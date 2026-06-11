@@ -1,4 +1,7 @@
-FROM oven/bun:1.1-alpine AS pipeline-builder
+# Match the Bun version used locally (bun.lock text format requires Bun 1.2+).
+ARG BUN_VERSION=1.3-alpine
+
+FROM oven/bun:${BUN_VERSION} AS pipeline-builder
 WORKDIR /workspace
 
 COPY package.json bun.lock ./
@@ -9,12 +12,13 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build:web && bun run build:server
 
-FROM oven/bun:1.1-alpine AS production-runtime
+FROM oven/bun:${BUN_VERSION} AS production-runtime
 WORKDIR /app
 
 COPY --from=pipeline-builder /workspace/server/dist ./server/dist
 COPY --from=pipeline-builder /workspace/server/node_modules ./server/node_modules
 COPY --from=pipeline-builder /workspace/server/package.json ./server/package.json
+COPY --from=pipeline-builder /workspace/node_modules ./node_modules
 COPY --from=pipeline-builder /workspace/web/dist ./web/dist
 
 RUN mkdir -p /app/server/data
