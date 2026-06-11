@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { FileExplorer } from './FileExplorer';
 
 afterEach(() => cleanup());
@@ -13,7 +13,7 @@ const nodes = [
 ];
 
 describe('FileExplorer', () => {
-    it('renders file tree and toggle aria label', () => {
+    it('renders explorer title and tree', () => {
         render(
             <FileExplorer
                 nodes={nodes}
@@ -24,9 +24,8 @@ describe('FileExplorer', () => {
             />,
         );
 
-        expect(
-            screen.getByLabelText('Toggle active files browser sidebar visibility'),
-        ).toBeDefined();
+        expect(screen.getByText('Explorer')).toBeDefined();
+        expect(screen.getByLabelText('Hide explorer sidebar')).toBeDefined();
         expect(screen.getByText('src')).toBeDefined();
     });
 
@@ -41,6 +40,21 @@ describe('FileExplorer', () => {
             />,
         );
 
-        expect(screen.getByText('Show Explorer')).toBeDefined();
+        expect(screen.getByLabelText('Show explorer sidebar')).toBeDefined();
+    });
+
+    it('hides new actions when read only', () => {
+        render(
+            <FileExplorer
+                nodes={nodes}
+                activeFileId="root/src/main.ts"
+                onSelectFile={() => {}}
+                visible
+                onToggle={() => {}}
+                readOnly
+            />,
+        );
+
+        expect(screen.queryByLabelText('New file or folder')).toBeNull();
     });
 });

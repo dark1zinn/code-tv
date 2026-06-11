@@ -122,6 +122,10 @@ export function CodeEditorPage() {
                 onToggleChat={toggleChat}
                 onSwapSidebarPositions={swapSidebarPositions}
                 onSelectFile={session.selectFile}
+                onCreateFile={(parent, name) => void session.createFile(parent, name)}
+                onCreateFolder={(parent, name) => void session.createFolder(parent, name)}
+                onRenamePath={(path, name) => void session.renamePath(path, name)}
+                onDeletePath={(path) => void session.deletePath(path)}
                 onCodeChange={(value) => {
                     session.setCode(value);
                     session.persistWorkspace(value, session.activeFileId);

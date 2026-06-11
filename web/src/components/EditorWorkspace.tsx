@@ -24,6 +24,10 @@ interface EditorWorkspaceProps {
     onToggleChat: () => void;
     onSwapSidebarPositions: () => void;
     onSelectFile: (fileId: string) => void;
+    onCreateFile?: (parentNodePath: string, name: string) => void;
+    onCreateFolder?: (parentNodePath: string, name: string) => void;
+    onRenamePath?: (nodePath: string, name: string) => void;
+    onDeletePath?: (nodePath: string) => void;
     onCodeChange: (value: string) => void;
     onCursorChange?: (position: { line: number; column: number }) => void;
     onManualInteraction?: () => void;
@@ -69,6 +73,10 @@ export function EditorWorkspace({
     onToggleChat,
     onSwapSidebarPositions,
     onSelectFile,
+    onCreateFile,
+    onCreateFolder,
+    onRenamePath,
+    onDeletePath,
     onCodeChange,
     onCursorChange,
     onManualInteraction,
@@ -128,6 +136,11 @@ export function EditorWorkspace({
                         visible
                         onToggle={onToggleExplorer}
                         onSelectFile={onSelectFile}
+                        readOnly={!onCreateFile}
+                        onCreateFile={onCreateFile}
+                        onCreateFolder={onCreateFolder}
+                        onRename={onRenamePath}
+                        onDelete={onDeletePath}
                     />
                 ) : (
                     <LiveChat

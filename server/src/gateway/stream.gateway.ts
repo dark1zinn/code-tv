@@ -26,6 +26,13 @@ export interface CodeStreamPayload {
     cursorCoordinates: { line: number; column: number };
 }
 
+export interface FilesStreamPayload {
+    roomSlug: string;
+    files: Array<{ path: string; content: string }>;
+    activeFileId: string;
+    fileValueString: string;
+}
+
 export interface ChatMessagePayload {
     roomSlug: string;
     messageText: string;
@@ -118,6 +125,18 @@ export class StreamGateway implements OnGatewayConnection {
         const history = this.ephemeralChatBuffer.get(roomSlug) ?? [];
         client.emit('chat:history', history);
         return { roomSlug, history };
+    }
+
+    @SubscribeMessage('files:stream')
+    handleFilesStream(@ConnectedSocket() client: Socket, @MessageBody() payload: FilesStreamPayload) {
+        const profile = this.socketProfiles.get(client.id);
+        const hostIp = this.roomHosts.get(payload.roomSlug);
+        if (!profile || hostIp !== profile.ipHash) {
+            return { error: 'forbidden' };
+        }
+
+        client.to(payload.roomSlug).emit('files:stream', payload);
+        return { ok: true };
     }
 
     @SubscribeMessage('code:stream')

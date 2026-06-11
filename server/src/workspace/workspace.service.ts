@@ -123,6 +123,20 @@ export class WorkspaceService {
         }
 
         if (input.files) {
+            const nextPaths = new Set(input.files.map((file) => file.path));
+            const existingFiles = await this.db
+                .select()
+                .from(workspaceFiles)
+                .where(eq(workspaceFiles.workspaceId, workspaceId));
+
+            for (const existing of existingFiles) {
+                if (!nextPaths.has(existing.path)) {
+                    await this.db
+                        .delete(workspaceFiles)
+                        .where(eq(workspaceFiles.id, existing.id));
+                }
+            }
+
             for (const file of input.files) {
                 const [existing] = await this.db
                     .select()

@@ -1,4 +1,5 @@
 import type { FileNode } from '@/components/FileExplorer';
+import { FOLDER_MARKER } from '@/lib/file-tree';
 
 export interface FlatFile {
     path: string;
@@ -30,7 +31,9 @@ export function flatFilesToTree(files: FlatFile[]): {
             const isFile = i === parts.length - 1;
 
             if (isFile) {
-                current.push({ name: part, type: 'file' });
+                if (part !== FOLDER_MARKER) {
+                    current.push({ name: part, type: 'file' });
+                }
             } else {
                 let folder = current.find((n) => n.name === part && n.type === 'folder');
                 if (!folder) {

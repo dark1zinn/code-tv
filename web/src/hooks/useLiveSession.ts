@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage } from '@/components/LiveChat';
-import { flatFilesToTree } from '@/lib/files';
+import { flatFilesToTree, type FlatFile } from '@/lib/files';
 import type { ViewerContext } from './useLiveRoute';
 
 export function useLiveSession(
@@ -11,11 +11,13 @@ export function useLiveSession(
     connected: boolean,
 ) {
     const isWatchMode = mode === 'watch' && viewer?.isLive === true;
+    const [liveFiles, setLiveFiles] = useState<FlatFile[]>(viewer?.files ?? []);
 
-    const { nodes, fileMap } = useMemo(
-        () => flatFilesToTree(viewer?.files ?? []),
-        [viewer?.files],
-    );
+    useEffect(() => {
+        setLiveFiles(viewer?.files ?? []);
+    }, [viewer?.workspaceId, viewer?.files]);
+
+    const { nodes, fileMap } = useMemo(() => flatFilesToTree(liveFiles), [liveFiles]);
 
     const firstFileId = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
 
@@ -23,6 +25,16 @@ export function useLiveSession(
     const [code, setCode] = useState(fileMap[firstFileId] ?? 'export {}\n');
     const [isFollowingHost, setIsFollowingHost] = useState(true);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const activeFileIdRef = useRef(activeFileId);
+    const isFollowingHostRef = useRef(isFollowingHost);
+
+    useEffect(() => {
+        activeFileIdRef.current = activeFileId;
+    }, [activeFileId]);
+
+    useEffect(() => {
+        isFollowingHostRef.current = isFollowingHost;
+    }, [isFollowingHost]);
 
     useEffect(() => {
         if (!viewer) return;
@@ -33,7 +45,7 @@ export function useLiveSession(
             setMessages([]);
             setIsFollowingHost(false);
         }
-    }, [viewer, fileMap, isWatchMode]);
+    }, [viewer?.workspaceId, fileMap, isWatchMode]);
 
     useEffect(() => {
         if (!isWatchMode || !connected || !viewer?.streamId) return;
@@ -58,13 +70,38 @@ export function useLiveSession(
             setActiveFileId(data.activeFileId);
             setCode(data.fileValueString);
         });
+        const unsubFiles = on('files:stream', (payload) => {
+            const data = payload as {
+                files: FlatFile[];
+                activeFileId: string;
+                fileValueString: string;
+            };
+            setLiveFiles(data.files);
+            const { fileMap: nextMap } = flatFilesToTree(data.files);
+            if (isFollowingHostRef.current) {
+                setActiveFileId(data.activeFileId);
+                setCode(data.fileValueString);
+                return;
+            }
+            const currentId = activeFileIdRef.current;
+            if (nextMap[currentId]) {
+                setCode(nextMap[currentId] ?? '');
+                return;
+            }
+            const fallback = Object.keys(nextMap)[0];
+            if (fallback) {
+                setActiveFileId(fallback);
+                setCode(nextMap[fallback] ?? '');
+            }
+        });
 
         return () => {
             unsubHistory();
             unsubMessage();
             unsubCode();
+            unsubFiles();
         };
-    }, [isWatchMode, on, isFollowingHost]);
+    }, [isWatchMode, on]);
 
     const sendChat = useCallback(
         async (text: string) => {
