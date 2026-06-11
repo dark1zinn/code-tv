@@ -5,8 +5,10 @@ describe('useKeyboardShortcuts', () => {
         document.removeEventListener('keydown', () => {});
     });
 
-    it('registers keydown handlers for explorer and chat', async () => {
-        const toggleExplorer = mock(() => {});
+    it('registers keydown handlers for sidebars, swap, and focus', async () => {
+        const toggleLeftSidebar = mock(() => {});
+        const toggleRightSidebar = mock(() => {});
+        const swapSidebarPositions = mock(() => {});
         const focusChat = mock(() => {});
 
         const listeners: Array<(event: KeyboardEvent) => void> = [];
@@ -17,13 +19,28 @@ describe('useKeyboardShortcuts', () => {
 
         const { useKeyboardShortcuts } = await import('./useKeyboardShortcuts');
         const { renderHook } = await import('@testing-library/react');
-        renderHook(() => useKeyboardShortcuts({ toggleExplorer, focusChat }));
+        renderHook(() =>
+            useKeyboardShortcuts({
+                toggleLeftSidebar,
+                toggleRightSidebar,
+                swapSidebarPositions,
+                focusChat,
+            }),
+        );
 
         listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: 'b' }));
+        listeners[0]?.(
+            new KeyboardEvent('keydown', { ctrlKey: true, altKey: true, key: 'b' }),
+        );
+        listeners[0]?.(
+            new KeyboardEvent('keydown', { ctrlKey: true, key: ',' }),
+        );
         listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: '/' }));
 
-        expect(toggleExplorer).toHaveBeenCalled();
-        expect(focusChat).toHaveBeenCalled();
+        expect(toggleLeftSidebar).toHaveBeenCalledTimes(1);
+        expect(toggleRightSidebar).toHaveBeenCalledTimes(1);
+        expect(swapSidebarPositions).toHaveBeenCalledTimes(1);
+        expect(focusChat).toHaveBeenCalledTimes(1);
 
         window.addEventListener = original;
     });

@@ -1,9 +1,14 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { CodeEditor } from '@/components/CodeEditor';
 import { FileExplorer, type FileNode } from '@/components/FileExplorer';
 import { focusChatInput, LiveChat, type ChatMessage } from '@/components/LiveChat';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { getOrderClass, type EditorLayoutMatrix } from '@/hooks/useEditorLayout';
+import {
+    getSidePanelOnSide,
+    isPanelVisible,
+    type EditorLayoutMatrix,
+    type SidebarAlignment,
+} from '@/hooks/useEditorLayout';
 
 interface EditorWorkspaceProps {
     language: string;
@@ -17,6 +22,7 @@ interface EditorWorkspaceProps {
     isFollowingHost?: boolean;
     onToggleExplorer: () => void;
     onToggleChat: () => void;
+    onSwapSidebarPositions: () => void;
     onSelectFile: (fileId: string) => void;
     onCodeChange: (value: string) => void;
     onCursorChange?: (position: { line: number; column: number }) => void;
@@ -24,6 +30,29 @@ interface EditorWorkspaceProps {
     onSendChat: (text: string) => void;
     onFollowHost?: () => void;
     showFollowHost?: boolean;
+}
+
+function CollapsedPanelButton({
+    label,
+    side,
+    onClick,
+}: {
+    label: string;
+    side: SidebarAlignment;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            className={`absolute top-2 z-10 shrink-0 rounded bg-bg-sidecar px-2 py-1 text-sm ${
+                side === 'left' ? 'left-2' : 'right-2'
+            }`}
+            onClick={onClick}
+        >
+            {label}
+        </button>
+    );
 }
 
 export function EditorWorkspace({
@@ -38,6 +67,7 @@ export function EditorWorkspace({
     isFollowingHost,
     onToggleExplorer,
     onToggleChat,
+    onSwapSidebarPositions,
     onSelectFile,
     onCodeChange,
     onCursorChange,
@@ -47,14 +77,72 @@ export function EditorWorkspace({
     showFollowHost,
 }: EditorWorkspaceProps) {
     const cursorRef = useRef({ line: 1, column: 1 });
+    const chatEnabledRef = useRef(chatEnabled);
+    chatEnabledRef.current = chatEnabled;
 
     useKeyboardShortcuts({
-        toggleExplorer: onToggleExplorer,
+        toggleLeftSidebar: () => {
+            const panel = getSidePanelOnSide('left', layout, chatEnabledRef.current);
+            if (panel === 'explorer') onToggleExplorer();
+            else if (panel === 'chat') onToggleChat();
+        },
+        toggleRightSidebar: () => {
+            const panel = getSidePanelOnSide('right', layout, chatEnabledRef.current);
+            if (panel === 'explorer') onToggleExplorer();
+            else if (panel === 'chat') onToggleChat();
+        },
+        swapSidebarPositions: onSwapSidebarPositions,
         focusChat: chatEnabled ? focusChatInput : () => {},
     });
 
+    useEffect(() => {
+        window.dispatchEvent(new Event('resize'));
+    }, [
+        layout.explorerVisible,
+        layout.chatVisible,
+        layout.explorerPosition,
+        layout.chatPosition,
+        chatEnabled,
+    ]);
+
+    const renderSidebar = (side: SidebarAlignment) => {
+        const panel = getSidePanelOnSide(side, layout, chatEnabled);
+        if (!panel) return null;
+
+        const visible = isPanelVisible(panel, layout);
+        const onToggle = panel === 'explorer' ? onToggleExplorer : onToggleChat;
+
+        if (!visible) {
+            const label = panel === 'explorer' ? 'Show Explorer' : 'Show Chat';
+            return <CollapsedPanelButton key={side} label={label} side={side} onClick={onToggle} />;
+        }
+
+        const widthClass = panel === 'chat' ? 'w-80' : 'w-64';
+
+        return (
+            <div key={side} className={`flex h-full shrink-0 flex-col min-h-0 ${widthClass}`}>
+                {panel === 'explorer' ? (
+                    <FileExplorer
+                        nodes={fileNodes}
+                        activeFileId={activeFileId}
+                        visible
+                        onToggle={onToggleExplorer}
+                        onSelectFile={onSelectFile}
+                    />
+                ) : (
+                    <LiveChat
+                        messages={messages}
+                        onSend={onSendChat}
+                        visible
+                        onToggle={onToggleChat}
+                    />
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className="relative flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1 w-full">
             {showFollowHost && onFollowHost && (
                 <button
                     type="button"
@@ -64,19 +152,10 @@ export function EditorWorkspace({
                     Follow Host
                 </button>
             )}
-            {layout.explorerVisible && (
-                <div className={getOrderClass('explorer', layout)}>
-                    <FileExplorer
-                        nodes={fileNodes}
-                        activeFileId={activeFileId}
-                        visible={layout.explorerVisible}
-                        onToggle={onToggleExplorer}
-                        onSelectFile={onSelectFile}
-                    />
-                </div>
-            )}
 
-            <div className={getOrderClass('editor', layout)}>
+            {renderSidebar('left')}
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <CodeEditor
                     language={language}
                     value={code}
@@ -90,16 +169,7 @@ export function EditorWorkspace({
                 />
             </div>
 
-            {chatEnabled && layout.chatVisible && (
-                <div className={getOrderClass('chat', layout)}>
-                    <LiveChat
-                        messages={messages}
-                        onSend={onSendChat}
-                        visible={layout.chatVisible}
-                        onToggle={onToggleChat}
-                    />
-                </div>
-            )}
+            {renderSidebar('right')}
         </div>
     );
 }

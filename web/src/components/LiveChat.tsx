@@ -38,7 +38,7 @@ export function LiveChat({ messages, onSend, visible, onToggle }: LiveChatProps)
     }
 
     return (
-        <aside className="flex h-full w-80 flex-col border-l border-divider bg-bg-sidecar">
+        <aside className="flex h-full w-full flex-col border-divider bg-bg-sidecar border-l">
             <div className="flex items-center justify-between border-b border-divider px-3 py-2">
                 <span className="text-sm font-semibold">Live Chat</span>
                 <button type="button" className="text-xs text-accent" onClick={onToggle}>

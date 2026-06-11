@@ -11,7 +11,7 @@ export function CodeEditorPage() {
     const { workspaceId } = useParams();
     const navigate = useNavigate();
     const { connected, emit, on } = useSocketContext();
-    const { layout, toggleExplorer, toggleChat } = useEditorLayout();
+    const { layout, toggleExplorer, toggleChat, swapSidebarPositions } = useEditorLayout();
     const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
     const [streamId, setStreamId] = useState<string | null>(null);
     const [username, setUsername] = useState('Host');
@@ -107,6 +107,7 @@ export function CodeEditorPage() {
                 connected={connected}
                 onStopStreaming={() => void handleStop()}
                 onLeaveHosting={() => handleLeaveHosting()}
+                onSwapSidebarPositions={swapSidebarPositions}
             />
             <EditorWorkspace
                 language={session.language}
@@ -119,6 +120,7 @@ export function CodeEditorPage() {
                 layout={layout}
                 onToggleExplorer={toggleExplorer}
                 onToggleChat={toggleChat}
+                onSwapSidebarPositions={swapSidebarPositions}
                 onSelectFile={session.selectFile}
                 onCodeChange={(value) => {
                     session.setCode(value);

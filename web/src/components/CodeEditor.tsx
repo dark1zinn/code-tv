@@ -28,7 +28,7 @@ export function CodeEditor({
     };
 
     return (
-        <section className="h-full min-h-0 bg-bg-base">
+        <section className="h-full min-h-0 min-w-0 w-full flex-1 bg-bg-base">
             <Editor
                 height="100%"
                 language={language}

@@ -78,7 +78,7 @@ export function FileExplorer({
     };
 
     return (
-        <aside className="flex h-full w-64 flex-col border-r border-divider bg-bg-sidecar">
+        <aside className="flex h-full w-full flex-col border-r border-divider bg-bg-sidecar">
             <div className="flex items-center justify-between border-b border-divider px-3 py-2">
                 <span className="text-sm font-semibold">Files</span>
                 <button

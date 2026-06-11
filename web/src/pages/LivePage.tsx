@@ -12,7 +12,7 @@ export function LivePage() {
     const [username, setUsername] = useState('Viewer');
 
     const chatEnabled = mode === 'watch' && viewer?.isLive === true;
-    const { layout, toggleExplorer, toggleChat, setLayout } = useEditorLayout({
+    const { layout, toggleExplorer, toggleChat, swapSidebarPositions, setLayout } = useEditorLayout({
         chatVisible: false,
     });
 
@@ -55,6 +55,7 @@ export function LivePage() {
                 onUsernameChange={setUsername}
                 connected={chatEnabled ? connected : undefined}
                 badge={mode === 'replay' ? 'Saved' : undefined}
+                onSwapSidebarPositions={swapSidebarPositions}
             />
             <EditorWorkspace
                 language={session.language}
@@ -68,6 +69,7 @@ export function LivePage() {
                 isFollowingHost={session.isFollowingHost}
                 onToggleExplorer={toggleExplorer}
                 onToggleChat={toggleChat}
+                onSwapSidebarPositions={swapSidebarPositions}
                 onSelectFile={session.selectFile}
                 onCodeChange={() => {}}
                 onManualInteraction={() => session.setIsFollowingHost(false)}

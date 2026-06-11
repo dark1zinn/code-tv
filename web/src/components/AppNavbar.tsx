@@ -1,3 +1,4 @@
+import { ArrowLeftRight } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ interface AppNavbarProps {
     badge?: string;
     onStopStreaming?: () => void;
     onLeaveHosting?: () => void | Promise<void>;
+    onSwapSidebarPositions?: () => void;
 }
 
 export function AppNavbar({
@@ -21,6 +23,7 @@ export function AppNavbar({
     badge,
     onStopStreaming,
     onLeaveHosting,
+    onSwapSidebarPositions,
 }: AppNavbarProps) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -28,7 +31,8 @@ export function AppNavbar({
     const isLive = location.pathname === '/live';
     const isCode = location.pathname.startsWith('/code/');
     const isHome = location.pathname === '/';
-    const showShare = isLive || isCode;
+    const showEditorControls = isLive || isCode;
+    const showShare = showEditorControls;
     const showGoLive = isHome || isLive;
     const showStop = isCode && onStopStreaming;
 
@@ -75,6 +79,19 @@ export function AppNavbar({
                 )}
             </div>
             <div className="flex items-center gap-2">
+                {showEditorControls && onSwapSidebarPositions && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label="Swap explorer and chat sides"
+                        title="Swap explorer and chat sides (Ctrl+,)"
+                        onClick={onSwapSidebarPositions}
+                    >
+                        <ArrowLeftRight className="h-4 w-4" />
+                        Swap sides
+                    </Button>
+                )}
                 {showShare && (
                     <ShareLinkButton
                         url={isLive ? window.location.href : undefined}
