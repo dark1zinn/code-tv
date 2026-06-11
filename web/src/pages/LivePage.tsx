@@ -58,7 +58,6 @@ export function LivePage() {
                 onSwapSidebarPositions={swapSidebarPositions}
             />
             <EditorWorkspace
-                language={session.language}
                 code={session.code}
                 activeFileId={session.activeFileId}
                 fileNodes={session.fileNodes}

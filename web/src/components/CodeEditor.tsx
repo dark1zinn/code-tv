@@ -1,8 +1,10 @@
-import Editor, { type OnMount } from '@monaco-editor/react';
-import type { editor as MonacoEditor } from 'monaco-editor';
+import Editor, { type BeforeMount, type OnMount } from '@monaco-editor/react';
+import { fileIdToPath } from '@/lib/files';
+import { registerMonacoCompletions } from '@/lib/monaco/completions';
 
 interface CodeEditorProps {
     language: string;
+    fileId: string;
     value: string;
     readOnly?: boolean;
     onChange?: (value: string) => void;
@@ -12,13 +14,23 @@ interface CodeEditorProps {
 
 export function CodeEditor({
     language,
+    fileId,
     value,
     readOnly = false,
     onChange,
     onCursorChange,
     onManualInteraction,
 }: CodeEditorProps) {
-    const handleMount: OnMount = (editorInstance: MonacoEditor.IStandaloneCodeEditor) => {
+    const handleBeforeMount: BeforeMount = (monaco) => {
+        registerMonacoCompletions(monaco);
+    };
+
+    const handleMount: OnMount = (editorInstance, monaco) => {
+        const model = editorInstance.getModel();
+        if (model) {
+            monaco.editor.setModelLanguage(model, language);
+        }
+
         editorInstance.onDidChangeCursorPosition((event) => {
             onCursorChange?.({
                 line: event.position.lineNumber,
@@ -30,8 +42,10 @@ export function CodeEditor({
     return (
         <section className="h-full min-h-0 min-w-0 w-full flex-1 bg-bg-base">
             <Editor
+                key={`${fileId}:${language}`}
                 height="100%"
                 language={language}
+                path={fileIdToPath(fileId)}
                 value={value}
                 theme="vs-dark"
                 options={{
@@ -40,6 +54,7 @@ export function CodeEditor({
                     fontSize: 14,
                     automaticLayout: true,
                 }}
+                beforeMount={handleBeforeMount}
                 onChange={(nextValue) => {
                     onManualInteraction?.();
                     onChange?.(nextValue ?? '');

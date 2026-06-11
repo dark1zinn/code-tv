@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { fileContentById, upsertFileContent } from '@/lib/files';
+import { fileContentById, monacoLanguageFromPath, upsertFileContent } from '@/lib/files';
 
 describe('files', () => {
     it('upserts file content by file id', () => {
@@ -17,5 +17,14 @@ describe('files', () => {
             'root/src/other.ts',
         );
         expect(content).toBe('hello');
+    });
+
+    it('maps file extensions to monaco language ids', () => {
+        expect(monacoLanguageFromPath('root/README.md')).toBe('markdown');
+        expect(monacoLanguageFromPath('root/src/main.ts')).toBe('typescript');
+        expect(monacoLanguageFromPath('root/main.rs')).toBe('rust');
+        expect(monacoLanguageFromPath('root/main.go')).toBe('go');
+        expect(monacoLanguageFromPath('root/main.cpp')).toBe('cpp');
+        expect(monacoLanguageFromPath('root/Makefile')).toBe('plaintext');
     });
 });

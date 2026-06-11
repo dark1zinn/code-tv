@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CodeEditor } from '@/components/CodeEditor';
+import { monacoLanguageFromPath } from '@/lib/files';
 import { EditorTabHeader } from '@/components/EditorTabHeader';
 import { FileExplorer, type FileNode } from '@/components/FileExplorer';
 import { focusChatInput, LiveChat, type ChatMessage } from '@/components/LiveChat';
@@ -12,7 +13,6 @@ import {
 } from '@/hooks/useEditorLayout';
 
 interface EditorWorkspaceProps {
-    language: string;
     code: string;
     activeFileId: string;
     fileNodes: FileNode[];
@@ -61,7 +61,6 @@ function CollapsedPanelButton({
 }
 
 export function EditorWorkspace({
-    language,
     code,
     activeFileId,
     fileNodes,
@@ -172,7 +171,8 @@ export function EditorWorkspace({
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <EditorTabHeader activeFileId={activeFileId} />
                 <CodeEditor
-                    language={language}
+                    language={monacoLanguageFromPath(activeFileId)}
+                    fileId={activeFileId}
                     value={code}
                     readOnly={readOnly}
                     onChange={onCodeChange}

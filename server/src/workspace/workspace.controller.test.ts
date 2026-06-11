@@ -10,6 +10,7 @@ import { migrateDatabase } from '../database/migrate';
 import { IdentityMiddleware } from '../identity/identity.middleware';
 import { hashIpAddress } from '../identity/ip-hash';
 import { ProfileModule } from '../profile/profile.module';
+import { DEFAULT_README_CONTENT, DEFAULT_README_PATH } from './default-files';
 import { WorkspaceModule } from './workspace.module';
 
 const tempDir = mkdtempSync(join(tmpdir(), 'codetv-workspace-'));
@@ -74,7 +75,9 @@ describe('WorkspaceController', () => {
         workspaceId = created.id;
         expect(created.title).toBe('My Project');
         expect(created.tags).toEqual(['typescript']);
-        expect(created.files.length).toBeGreaterThan(0);
+        expect(created.files).toHaveLength(1);
+        expect(created.files[0]?.path).toBe(DEFAULT_README_PATH);
+        expect(created.files[0]?.content).toBe(DEFAULT_README_CONTENT);
 
         const listRes = await fetch(`http://127.0.0.1:${port}/_api/workspaces`, {
             headers: { 'x-forwarded-for': hostIp },

@@ -14,6 +14,57 @@ export function fileIdToPath(fileId: string): string {
     return fileId.replace(/^root\//, '');
 }
 
+const EXTENSION_TO_MONACO: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescript',
+    mts: 'typescript',
+    cts: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    py: 'python',
+    rs: 'rust',
+    go: 'go',
+    java: 'java',
+    cs: 'csharp',
+    cpp: 'cpp',
+    cc: 'cpp',
+    cxx: 'cpp',
+    hpp: 'cpp',
+    hh: 'cpp',
+    hxx: 'cpp',
+    h: 'cpp',
+    c: 'c',
+    html: 'html',
+    htm: 'html',
+    css: 'css',
+    json: 'json',
+    md: 'markdown',
+    markdown: 'markdown',
+    yaml: 'yaml',
+    yml: 'yaml',
+    sql: 'sql',
+    sh: 'shell',
+    bash: 'shell',
+    zsh: 'shell',
+    php: 'php',
+    rb: 'ruby',
+    swift: 'swift',
+    kt: 'kotlin',
+    kts: 'kotlin',
+};
+
+export function monacoLanguageFromPath(fileId: string): string {
+    const path = fileIdToPath(fileId);
+    const dot = path.lastIndexOf('.');
+    if (dot === -1 || dot === path.length - 1) return 'plaintext';
+    const ext = path.slice(dot + 1).toLowerCase();
+    return EXTENSION_TO_MONACO[ext] ?? 'plaintext';
+}
+
+export const DEFAULT_ACTIVE_FILE_ID = 'root/README.md';
+
 export function fileContentById(files: FlatFile[], fileId: string): string {
     const path = fileIdToPath(fileId);
     return files.find((file) => file.path === path)?.content ?? '';

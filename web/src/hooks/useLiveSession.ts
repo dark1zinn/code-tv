@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage } from '@/components/LiveChat';
-import { flatFilesToTree, type FlatFile } from '@/lib/files';
+import { DEFAULT_ACTIVE_FILE_ID, flatFilesToTree, type FlatFile } from '@/lib/files';
 import type { ViewerContext } from './useLiveRoute';
 
 export function useLiveSession(
@@ -15,7 +15,7 @@ export function useLiveSession(
 
     const { nodes, fileMap } = useMemo(() => flatFilesToTree(liveFiles), [liveFiles]);
 
-    const firstFileId = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
+    const firstFileId = Object.keys(fileMap)[0] ?? DEFAULT_ACTIVE_FILE_ID;
 
     const [activeFileId, setActiveFileId] = useState(firstFileId);
     const [code, setCode] = useState(fileMap[firstFileId] ?? 'export {}\n');
@@ -38,7 +38,7 @@ export function useLiveSession(
         const initialFiles = viewer.files ?? [];
         setLiveFiles(initialFiles);
         const { fileMap: initialMap } = flatFilesToTree(initialFiles);
-        const id = Object.keys(initialMap)[0] ?? 'root/src/main.ts';
+        const id = Object.keys(initialMap)[0] ?? DEFAULT_ACTIVE_FILE_ID;
         setActiveFileId(id);
         setCode(initialMap[id] ?? 'export {}\n');
         if (!isWatchMode) {
@@ -121,7 +121,6 @@ export function useLiveSession(
     );
 
     return {
-        language: viewer?.language ?? 'typescript',
         activeFileId,
         code,
         messages,

@@ -9,6 +9,7 @@ import {
     renameEntry,
 } from '@/lib/file-tree';
 import {
+    DEFAULT_ACTIVE_FILE_ID,
     flatFilesToTree,
     fileContentById,
     fileIdToPath,
@@ -35,7 +36,7 @@ export function useHostSession(
     const [files, setFiles] = useState<FlatFile[]>([]);
     const { nodes, fileMap } = useMemo(() => flatFilesToTree(files), [files]);
 
-    const firstFileId = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
+    const firstFileId = Object.keys(fileMap)[0] ?? DEFAULT_ACTIVE_FILE_ID;
     const [activeFileId, setActiveFileId] = useState(firstFileId);
     const [code, setCode] = useState(fileMap[firstFileId] ?? 'export {}\n');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -263,7 +264,6 @@ export function useHostSession(
     );
 
     return {
-        language: workspace?.language ?? 'typescript',
         activeFileId,
         code,
         messages,

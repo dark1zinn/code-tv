@@ -9,6 +9,7 @@ import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import { DATABASE } from '../database/database.module';
 import { profiles, streams, workspaceFiles, workspaces } from '../database/schema';
 import * as schema from '../database/schema';
+import { DEFAULT_README_CONTENT, DEFAULT_README_PATH } from './default-files';
 import {
     normalizeWorkspaceTags,
     parseWorkspaceTags,
@@ -75,8 +76,8 @@ export class WorkspaceService {
         await this.db.insert(workspaceFiles).values({
             id: crypto.randomUUID(),
             workspaceId: id,
-            path: 'src/main.ts',
-            content: 'export {}\n',
+            path: DEFAULT_README_PATH,
+            content: DEFAULT_README_CONTENT,
             updatedAt: now,
         });
 
