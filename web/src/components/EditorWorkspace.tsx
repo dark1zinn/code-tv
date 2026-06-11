@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CodeEditor } from '@/components/CodeEditor';
+import { EditorTabHeader } from '@/components/EditorTabHeader';
 import { FileExplorer, type FileNode } from '@/components/FileExplorer';
 import { focusChatInput, LiveChat, type ChatMessage } from '@/components/LiveChat';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -169,6 +170,7 @@ export function EditorWorkspace({
             {renderSidebar('left')}
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <EditorTabHeader activeFileId={activeFileId} />
                 <CodeEditor
                     language={language}
                     value={code}

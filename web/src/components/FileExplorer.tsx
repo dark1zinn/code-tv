@@ -294,22 +294,24 @@ export function FileExplorer({
                         </Button>
                     </div>
                 </div>
-                <ScrollArea className="flex-1">
-                    <div className="flex min-h-full flex-col gap-0.5 p-2">
-                        {nodes.map((node) => renderNode(node, 'root'))}
-                        {!readOnly ? (
+                <ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:min-h-full">
+                    <div className="relative min-h-full p-2">
+                        {!readOnly && (
                             <ContextMenu>
                                 <ContextMenuTrigger asChild>
                                     <div
-                                        className="min-h-8 flex-1"
+                                        className="absolute inset-0 z-0"
                                         aria-label="Explorer tree background"
                                     />
                                 </ContextMenuTrigger>
-                                <ContextMenuContent>{renderRootCreateMenuItems()}</ContextMenuContent>
+                                <ContextMenuContent>
+                                    {renderRootCreateMenuItems()}
+                                </ContextMenuContent>
                             </ContextMenu>
-                        ) : (
-                            <div className="flex-1" aria-hidden />
                         )}
+                        <div className="relative z-10 flex flex-col gap-0.5">
+                            {nodes.map((node) => renderNode(node, 'root'))}
+                        </div>
                     </div>
                 </ScrollArea>
             </aside>
