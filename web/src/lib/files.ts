@@ -14,6 +14,24 @@ export function fileIdToPath(fileId: string): string {
     return fileId.replace(/^root\//, '');
 }
 
+export function fileContentById(files: FlatFile[], fileId: string): string {
+    const path = fileIdToPath(fileId);
+    return files.find((file) => file.path === path)?.content ?? '';
+}
+
+export function upsertFileContent(
+    files: FlatFile[],
+    fileId: string,
+    content: string,
+): FlatFile[] {
+    const path = fileIdToPath(fileId);
+    const next = files.map((file) => (file.path === path ? { ...file, content } : file));
+    if (!next.some((file) => file.path === path)) {
+        next.push({ path, content });
+    }
+    return next;
+}
+
 export function flatFilesToTree(files: FlatFile[]): {
     nodes: FileNode[];
     fileMap: Record<string, string>;

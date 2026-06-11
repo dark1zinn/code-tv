@@ -13,10 +13,6 @@ export function useLiveSession(
     const isWatchMode = mode === 'watch' && viewer?.isLive === true;
     const [liveFiles, setLiveFiles] = useState<FlatFile[]>(viewer?.files ?? []);
 
-    useEffect(() => {
-        setLiveFiles(viewer?.files ?? []);
-    }, [viewer?.workspaceId, viewer?.files]);
-
     const { nodes, fileMap } = useMemo(() => flatFilesToTree(liveFiles), [liveFiles]);
 
     const firstFileId = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
@@ -38,14 +34,18 @@ export function useLiveSession(
 
     useEffect(() => {
         if (!viewer) return;
-        const id = Object.keys(fileMap)[0] ?? 'root/src/main.ts';
+
+        const initialFiles = viewer.files ?? [];
+        setLiveFiles(initialFiles);
+        const { fileMap: initialMap } = flatFilesToTree(initialFiles);
+        const id = Object.keys(initialMap)[0] ?? 'root/src/main.ts';
         setActiveFileId(id);
-        setCode(fileMap[id] ?? 'export {}\n');
+        setCode(initialMap[id] ?? 'export {}\n');
         if (!isWatchMode) {
             setMessages([]);
             setIsFollowingHost(false);
         }
-    }, [viewer?.workspaceId, fileMap, isWatchMode]);
+    }, [viewer?.workspaceId, isWatchMode]);
 
     useEffect(() => {
         if (!isWatchMode || !connected || !viewer?.streamId) return;

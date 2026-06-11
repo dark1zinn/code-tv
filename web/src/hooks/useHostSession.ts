@@ -8,7 +8,14 @@ import {
     remapActiveFileId,
     renameEntry,
 } from '@/lib/file-tree';
-import { flatFilesToTree, fileIdToPath, pathToFileId, type FlatFile } from '@/lib/files';
+import {
+    flatFilesToTree,
+    fileContentById,
+    fileIdToPath,
+    pathToFileId,
+    upsertFileContent,
+    type FlatFile,
+} from '@/lib/files';
 
 export interface WorkspaceData {
     id: string;
@@ -33,13 +40,13 @@ export function useHostSession(
     const [code, setCode] = useState(fileMap[firstFileId] ?? 'export {}\n');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const fileMapRef = useRef(fileMap);
+    const filesRef = useRef(files);
     const activeFileIdRef = useRef(activeFileId);
     const codeRef = useRef(code);
 
     useEffect(() => {
-        fileMapRef.current = fileMap;
-    }, [fileMap]);
+        filesRef.current = files;
+    }, [files]);
 
     useEffect(() => {
         activeFileIdRef.current = activeFileId;
@@ -51,16 +58,14 @@ export function useHostSession(
 
     useEffect(() => {
         if (!workspace) return;
-        setFiles(workspace.files);
-    }, [workspace?.id, workspace?.files]);
 
-    useEffect(() => {
-        if (!workspace) return;
-        const id = Object.keys(fileMap)[0];
+        setFiles(workspace.files);
+        const { fileMap: initialMap } = flatFilesToTree(workspace.files);
+        const id = Object.keys(initialMap)[0];
         if (!id) return;
         setActiveFileId(id);
-        setCode(fileMap[id] ?? 'export {}\n');
-    }, [workspace?.id, fileMap]);
+        setCode(initialMap[id] ?? 'export {}\n');
+    }, [workspace?.id]);
 
     useEffect(() => {
         if (!connected || !streamId) return;
@@ -110,9 +115,9 @@ export function useHostSession(
             nextFiles: FlatFile[],
             options?: { activeFileId?: string; code?: string },
         ) => {
-            const { fileMap: nextMap } = flatFilesToTree(nextFiles);
             const nextActiveId = options?.activeFileId ?? activeFileIdRef.current;
-            const nextCode = options?.code ?? nextMap[nextActiveId] ?? codeRef.current;
+            const nextCode =
+                options?.code ?? fileContentById(nextFiles, nextActiveId) ?? codeRef.current;
 
             setFiles(nextFiles);
             setActiveFileId(nextActiveId);
@@ -123,22 +128,28 @@ export function useHostSession(
         [persistFiles, broadcastFiles],
     );
 
+    const flushPendingPersist = useCallback(() => {
+        if (!persistTimer.current) return;
+        clearTimeout(persistTimer.current);
+        persistTimer.current = null;
+
+        const fileId = activeFileIdRef.current;
+        const nextFiles = upsertFileContent(filesRef.current, fileId, codeRef.current);
+        filesRef.current = nextFiles;
+        setFiles(nextFiles);
+    }, []);
+
     const persistWorkspace = useCallback(
         (nextCode: string, fileId: string) => {
             if (!workspace) return;
             if (persistTimer.current) clearTimeout(persistTimer.current);
             persistTimer.current = setTimeout(() => {
-                const path = fileIdToPath(fileId);
-                const nextFiles = files.map((file) =>
-                    file.path === path ? { ...file, content: nextCode } : file,
-                );
-                if (!nextFiles.some((file) => file.path === path)) {
-                    nextFiles.push({ path, content: nextCode });
-                }
+                persistTimer.current = null;
+                const nextFiles = upsertFileContent(filesRef.current, fileId, nextCode);
                 void applyFiles(nextFiles, { activeFileId: fileId, code: nextCode });
             }, 800);
         },
-        [workspace, files, applyFiles],
+        [workspace, applyFiles],
     );
 
     const streamCode = useCallback(
@@ -146,12 +157,12 @@ export function useHostSession(
             if (!streamId) return;
             await emit('code:stream', {
                 roomSlug: streamId,
-                activeFileId,
+                activeFileId: activeFileIdRef.current,
                 fileValueString: nextCode,
                 cursorCoordinates: cursor,
             });
         },
-        [emit, streamId, activeFileId],
+        [emit, streamId],
     );
 
     const sendChat = useCallback(
@@ -167,20 +178,26 @@ export function useHostSession(
         await emit('room:close', streamId);
     }, [emit, streamId]);
 
-    const selectFile = useCallback(
-        (fileId: string) => {
-            setActiveFileId(fileId);
-            setCode(fileMap[fileId] ?? '');
-        },
-        [fileMap],
-    );
+    const selectFile = useCallback((fileId: string) => {
+        if (fileId === activeFileIdRef.current) return;
+
+        flushPendingPersist();
+
+        const currentId = activeFileIdRef.current;
+        const nextFiles = upsertFileContent(filesRef.current, currentId, codeRef.current);
+        filesRef.current = nextFiles;
+        setFiles(nextFiles);
+        setActiveFileId(fileId);
+        setCode(fileContentById(nextFiles, fileId));
+    }, [flushPendingPersist]);
 
     const createFile = useCallback(
         async (parentNodePath: string, name: string) => {
             try {
+                flushPendingPersist();
                 const parentPath =
                     parentNodePath === 'root' ? '' : fileIdToPath(parentNodePath);
-                const nextFiles = createFileEntry(files, parentPath, name);
+                const nextFiles = createFileEntry(filesRef.current, parentPath, name);
                 const created = nextFiles[nextFiles.length - 1]!;
                 await applyFiles(nextFiles, {
                     activeFileId: pathToFileId(created.path),
@@ -190,58 +207,59 @@ export function useHostSession(
                 // invalid or duplicate name
             }
         },
-        [files, applyFiles],
+        [applyFiles, flushPendingPersist],
     );
 
     const createFolder = useCallback(
         async (parentNodePath: string, name: string) => {
             try {
+                flushPendingPersist();
                 const parentPath =
                     parentNodePath === 'root' ? '' : fileIdToPath(parentNodePath);
-                const nextFiles = createFolderEntry(files, parentPath, name);
+                const nextFiles = createFolderEntry(filesRef.current, parentPath, name);
                 await applyFiles(nextFiles);
             } catch {
                 // invalid or duplicate name
             }
         },
-        [files, applyFiles],
+        [applyFiles, flushPendingPersist],
     );
 
     const renamePath = useCallback(
         async (nodePath: string, nextName: string) => {
             try {
-                const nextFiles = renameEntry(files, nodePath, nextName);
+                flushPendingPersist();
+                const nextFiles = renameEntry(filesRef.current, nodePath, nextName);
                 const nextActiveId = remapActiveFileId(
                     activeFileIdRef.current,
                     nodePath,
                     nextName,
                 );
-                const { fileMap: nextMap } = flatFilesToTree(nextFiles);
                 await applyFiles(nextFiles, {
                     activeFileId: nextActiveId,
-                    code: nextMap[nextActiveId] ?? '',
+                    code: fileContentById(nextFiles, nextActiveId),
                 });
             } catch {
                 // invalid or duplicate name
             }
         },
-        [files, applyFiles],
+        [applyFiles, flushPendingPersist],
     );
 
     const deletePath = useCallback(
         async (nodePath: string) => {
-            const nextFiles = deleteEntry(files, nodePath);
+            flushPendingPersist();
+            const nextFiles = deleteEntry(filesRef.current, nodePath);
             if (nextFiles.length === 0) return;
             const fallbackId =
                 pickFallbackFileId(nextFiles, nodePath) ??
                 pathToFileId(nextFiles.find((f) => !f.path.endsWith('/.gitkeep'))!.path);
-            const { fileMap: nextMap } = flatFilesToTree(nextFiles);
             await applyFiles(nextFiles, {
                 activeFileId: fallbackId,
-                code: nextMap[fallbackId] ?? '',
+                code: fileContentById(nextFiles, fallbackId),
             });
         },
-        [files, applyFiles],
+        [applyFiles, flushPendingPersist],
     );
 
     return {

@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 export interface FileNode {
@@ -254,7 +253,7 @@ export function FileExplorer({
 
     return (
         <>
-            <aside className="flex h-full w-full flex-col border-r border-divider bg-bg-sidecar">
+            <aside className="flex h-full min-h-0 w-full flex-col border-r border-divider bg-bg-sidecar">
                 <div className="flex items-center justify-between border-b border-divider px-3 py-2">
                     <span className="text-sm font-semibold">Explorer</span>
                     <div className="flex items-center gap-0.5">
@@ -294,26 +293,26 @@ export function FileExplorer({
                         </Button>
                     </div>
                 </div>
-                <ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:min-h-full">
-                    <div className="relative min-h-full p-2">
-                        {!readOnly && (
-                            <ContextMenu>
-                                <ContextMenuTrigger asChild>
-                                    <div
-                                        className="absolute inset-0 z-0"
-                                        aria-label="Explorer tree background"
-                                    />
-                                </ContextMenuTrigger>
-                                <ContextMenuContent>
-                                    {renderRootCreateMenuItems()}
-                                </ContextMenuContent>
-                            </ContextMenu>
-                        )}
-                        <div className="relative z-10 flex flex-col gap-0.5">
+                <div className="relative min-h-0 flex-1">
+                    {!readOnly && (
+                        <ContextMenu>
+                            <ContextMenuTrigger asChild>
+                                <div
+                                    className="absolute inset-0 z-0"
+                                    aria-label="Explorer tree background"
+                                />
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                                {renderRootCreateMenuItems()}
+                            </ContextMenuContent>
+                        </ContextMenu>
+                    )}
+                    <div className="pointer-events-none relative z-10 h-full overflow-y-auto">
+                        <div className="pointer-events-auto flex flex-col gap-0.5 p-2">
                             {nodes.map((node) => renderNode(node, 'root'))}
                         </div>
                     </div>
-                </ScrollArea>
+                </div>
             </aside>
 
             <Dialog
