@@ -66,6 +66,7 @@ export function LivePage() {
                 chatEnabled={chatEnabled}
                 layout={layout}
                 isFollowingHost={session.isFollowingHost}
+                followHostEnabled={session.isWatchMode}
                 onToggleExplorer={toggleExplorer}
                 onToggleChat={toggleChat}
                 onSwapSidebarPositions={swapSidebarPositions}
@@ -73,8 +74,7 @@ export function LivePage() {
                 onCodeChange={() => {}}
                 onManualInteraction={() => session.setIsFollowingHost(false)}
                 onSendChat={(text) => void session.sendChat(text)}
-                onFollowHost={() => session.setIsFollowingHost(true)}
-                showFollowHost={session.isWatchMode && !session.isFollowingHost}
+                onToggleFollowHost={session.toggleFollowHost}
             />
         </div>
     );

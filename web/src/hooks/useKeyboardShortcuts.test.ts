@@ -10,6 +10,7 @@ describe('useKeyboardShortcuts', () => {
         const toggleRightSidebar = mock(() => {});
         const swapSidebarPositions = mock(() => {});
         const focusChat = mock(() => {});
+        const focusEditor = mock(() => {});
 
         const listeners: Array<(event: KeyboardEvent) => void> = [];
         const original = window.addEventListener;
@@ -25,6 +26,7 @@ describe('useKeyboardShortcuts', () => {
                 toggleRightSidebar,
                 swapSidebarPositions,
                 focusChat,
+                focusEditor,
             }),
         );
 
@@ -35,12 +37,14 @@ describe('useKeyboardShortcuts', () => {
         listeners[0]?.(
             new KeyboardEvent('keydown', { ctrlKey: true, key: ',' }),
         );
-        listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: '/' }));
+        listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: 'm' }));
+        listeners[0]?.(new KeyboardEvent('keydown', { ctrlKey: true, key: "'" }));
 
         expect(toggleLeftSidebar).toHaveBeenCalledTimes(1);
         expect(toggleRightSidebar).toHaveBeenCalledTimes(1);
         expect(swapSidebarPositions).toHaveBeenCalledTimes(1);
         expect(focusChat).toHaveBeenCalledTimes(1);
+        expect(focusEditor).toHaveBeenCalledTimes(1);
 
         window.addEventListener = original;
     });

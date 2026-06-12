@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { CodeEditor } from '@/components/CodeEditor';
+import { useCallback, useEffect, useRef } from 'react';
+import { CollapsedSidebarRail } from '@/components/CollapsedSidebarRail';
+import { useCollapsedChatUnread } from '@/hooks/useCollapsedChatUnread';
+import { CodeEditor, focusCodeEditor } from '@/components/CodeEditor';
 import { monacoLanguageFromPath } from '@/lib/files';
 import { EditorTabHeader } from '@/components/EditorTabHeader';
 import { FileExplorer, type FileNode } from '@/components/FileExplorer';
@@ -21,6 +23,8 @@ interface EditorWorkspaceProps {
     chatEnabled: boolean;
     layout: EditorLayoutMatrix;
     isFollowingHost?: boolean;
+    followHostEnabled?: boolean;
+    editorFocusEnabled?: boolean;
     onToggleExplorer: () => void;
     onToggleChat: () => void;
     onSwapSidebarPositions: () => void;
@@ -33,31 +37,7 @@ interface EditorWorkspaceProps {
     onCursorChange?: (position: { line: number; column: number }) => void;
     onManualInteraction?: () => void;
     onSendChat: (text: string) => void;
-    onFollowHost?: () => void;
-    showFollowHost?: boolean;
-}
-
-function CollapsedPanelButton({
-    label,
-    side,
-    onClick,
-}: {
-    label: string;
-    side: SidebarAlignment;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            aria-label={label}
-            className={`absolute top-2 z-10 shrink-0 rounded bg-bg-sidecar px-2 py-1 text-sm ${
-                side === 'left' ? 'left-2' : 'right-2'
-            }`}
-            onClick={onClick}
-        >
-            {label}
-        </button>
-    );
+    onToggleFollowHost?: () => void;
 }
 
 export function EditorWorkspace({
@@ -69,6 +49,8 @@ export function EditorWorkspace({
     chatEnabled,
     layout,
     isFollowingHost,
+    followHostEnabled,
+    editorFocusEnabled,
     onToggleExplorer,
     onToggleChat,
     onSwapSidebarPositions,
@@ -81,26 +63,44 @@ export function EditorWorkspace({
     onCursorChange,
     onManualInteraction,
     onSendChat,
-    onFollowHost,
-    showFollowHost,
+    onToggleFollowHost,
 }: EditorWorkspaceProps) {
     const cursorRef = useRef({ line: 1, column: 1 });
     const chatEnabledRef = useRef(chatEnabled);
+    const layoutRef = useRef(layout);
     chatEnabledRef.current = chatEnabled;
+    layoutRef.current = layout;
+
+    const unreadChatCount = useCollapsedChatUnread(
+        messages,
+        layout.chatVisible,
+        chatEnabled,
+    );
+
+    const focusChatWithExpand = useCallback(() => {
+        if (!chatEnabledRef.current) return;
+        if (!layoutRef.current.chatVisible) {
+            onToggleChat();
+        }
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => focusChatInput());
+        });
+    }, [onToggleChat]);
 
     useKeyboardShortcuts({
         toggleLeftSidebar: () => {
-            const panel = getSidePanelOnSide('left', layout, chatEnabledRef.current);
+            const panel = getSidePanelOnSide('left', layoutRef.current, chatEnabledRef.current);
             if (panel === 'explorer') onToggleExplorer();
             else if (panel === 'chat') onToggleChat();
         },
         toggleRightSidebar: () => {
-            const panel = getSidePanelOnSide('right', layout, chatEnabledRef.current);
+            const panel = getSidePanelOnSide('right', layoutRef.current, chatEnabledRef.current);
             if (panel === 'explorer') onToggleExplorer();
             else if (panel === 'chat') onToggleChat();
         },
         swapSidebarPositions: onSwapSidebarPositions,
-        focusChat: chatEnabled ? focusChatInput : () => {},
+        focusChat: focusChatWithExpand,
+        focusEditor: editorFocusEnabled ? focusCodeEditor : undefined,
     });
 
     useEffect(() => {
@@ -121,8 +121,15 @@ export function EditorWorkspace({
         const onToggle = panel === 'explorer' ? onToggleExplorer : onToggleChat;
 
         if (!visible) {
-            const label = panel === 'explorer' ? 'Show Explorer' : 'Show Chat';
-            return <CollapsedPanelButton key={side} label={label} side={side} onClick={onToggle} />;
+            return (
+                <CollapsedSidebarRail
+                    key={side}
+                    side={side}
+                    panel={panel}
+                    onExpand={onToggle}
+                    unreadChatCount={panel === 'chat' ? unreadChatCount : undefined}
+                />
+            );
         }
 
         const widthClass = panel === 'chat' ? 'w-80' : 'w-64';
@@ -133,7 +140,6 @@ export function EditorWorkspace({
                     <FileExplorer
                         nodes={fileNodes}
                         activeFileId={activeFileId}
-                        visible
                         onToggle={onToggleExplorer}
                         onSelectFile={onSelectFile}
                         readOnly={!onCreateFile}
@@ -146,8 +152,8 @@ export function EditorWorkspace({
                     <LiveChat
                         messages={messages}
                         onSend={onSendChat}
-                        visible
                         onToggle={onToggleChat}
+                        collapseSide={layout.chatPosition}
                     />
                 )}
             </div>
@@ -156,20 +162,15 @@ export function EditorWorkspace({
 
     return (
         <div className="relative flex min-h-0 min-w-0 flex-1 w-full">
-            {showFollowHost && onFollowHost && (
-                <button
-                    type="button"
-                    className="absolute right-4 top-2 z-10 rounded border border-primary px-2 py-1 text-xs text-primary"
-                    onClick={onFollowHost}
-                >
-                    Follow Host
-                </button>
-            )}
-
             {renderSidebar('left')}
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <EditorTabHeader activeFileId={activeFileId} />
+                <EditorTabHeader
+                    activeFileId={activeFileId}
+                    followHostEnabled={followHostEnabled}
+                    isFollowingHost={isFollowingHost}
+                    onToggleFollowHost={onToggleFollowHost}
+                />
                 <CodeEditor
                     language={monacoLanguageFromPath(activeFileId)}
                     fileId={activeFileId}

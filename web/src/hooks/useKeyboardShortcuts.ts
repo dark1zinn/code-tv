@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { isChatFocusShortcut, isEditorFocusShortcut } from '@/lib/keyboard-shortcuts';
 
 interface ShortcutHandlers {
     toggleLeftSidebar: () => void;
     toggleRightSidebar: () => void;
     swapSidebarPositions?: () => void;
     focusChat: () => void;
+    focusEditor?: () => void;
 }
 
 export function useKeyboardShortcuts({
@@ -12,6 +14,7 @@ export function useKeyboardShortcuts({
     toggleRightSidebar,
     swapSidebarPositions,
     focusChat,
+    focusEditor,
 }: ShortcutHandlers) {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -35,7 +38,13 @@ export function useKeyboardShortcuts({
                 return;
             }
 
-            if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key === '/') {
+            if (isEditorFocusShortcut(event)) {
+                event.preventDefault();
+                focusEditor?.();
+                return;
+            }
+
+            if (isChatFocusShortcut(event)) {
                 event.preventDefault();
                 focusChat();
             }
@@ -43,5 +52,5 @@ export function useKeyboardShortcuts({
 
         window.addEventListener('keydown', onKeyDown, true);
         return () => window.removeEventListener('keydown', onKeyDown, true);
-    }, [toggleLeftSidebar, toggleRightSidebar, swapSidebarPositions, focusChat]);
+    }, [toggleLeftSidebar, toggleRightSidebar, swapSidebarPositions, focusChat, focusEditor]);
 }

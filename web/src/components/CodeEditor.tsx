@@ -1,6 +1,20 @@
+import { useEffect, useRef } from 'react';
 import Editor, { type BeforeMount, type OnMount } from '@monaco-editor/react';
+import type { editor as MonacoEditor } from 'monaco-editor';
 import { fileIdToPath } from '@/lib/files';
 import { registerMonacoCompletions } from '@/lib/monaco/completions';
+
+let focusEditorHandler: (() => void) | null = null;
+
+export function focusCodeEditor() {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.id === 'live-room-chat') {
+        active.blur();
+        requestAnimationFrame(() => focusEditorHandler?.());
+        return;
+    }
+    focusEditorHandler?.();
+}
 
 interface CodeEditorProps {
     language: string;
@@ -21,11 +35,22 @@ export function CodeEditor({
     onCursorChange,
     onManualInteraction,
 }: CodeEditorProps) {
-    const handleBeforeMount: BeforeMount = (monaco) => {
-        registerMonacoCompletions(monaco);
-    };
+    const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+
+    useEffect(() => {
+        focusEditorHandler = () => {
+            editorRef.current?.focus();
+        };
+        return () => {
+            focusEditorHandler = null;
+        };
+    }, []);
 
     const handleMount: OnMount = (editorInstance, monaco) => {
+        editorRef.current = editorInstance;
+        focusEditorHandler = () => {
+            editorInstance.focus();
+        };
         const model = editorInstance.getModel();
         if (model) {
             monaco.editor.setModelLanguage(model, language);
@@ -37,6 +62,10 @@ export function CodeEditor({
                 column: event.position.column,
             });
         });
+    };
+
+    const handleBeforeMount: BeforeMount = (monaco) => {
+        registerMonacoCompletions(monaco);
     };
 
     return (
@@ -56,7 +85,9 @@ export function CodeEditor({
                 }}
                 beforeMount={handleBeforeMount}
                 onChange={(nextValue) => {
-                    onManualInteraction?.();
+                    if (!readOnly) {
+                        onManualInteraction?.();
+                    }
                     onChange?.(nextValue ?? '');
                 }}
                 onMount={handleMount}

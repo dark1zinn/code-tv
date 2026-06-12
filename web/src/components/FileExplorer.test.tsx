@@ -19,7 +19,6 @@ describe('FileExplorer', () => {
                 nodes={nodes}
                 activeFileId="root/src/main.ts"
                 onSelectFile={() => {}}
-                visible
                 onToggle={() => {}}
             />,
         );
@@ -29,27 +28,12 @@ describe('FileExplorer', () => {
         expect(screen.getByText('src')).toBeDefined();
     });
 
-    it('shows collapsed toggle when hidden', () => {
-        render(
-            <FileExplorer
-                nodes={nodes}
-                activeFileId=""
-                onSelectFile={() => {}}
-                visible={false}
-                onToggle={() => {}}
-            />,
-        );
-
-        expect(screen.getByLabelText('Show explorer sidebar')).toBeDefined();
-    });
-
     it('hides new actions when read only', () => {
         render(
             <FileExplorer
                 nodes={nodes}
                 activeFileId="root/src/main.ts"
                 onSelectFile={() => {}}
-                visible
                 onToggle={() => {}}
                 readOnly
             />,

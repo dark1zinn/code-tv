@@ -117,6 +117,7 @@ export function CodeEditorPage() {
                 readOnly={session.readOnly}
                 chatEnabled
                 layout={layout}
+                editorFocusEnabled
                 onToggleExplorer={toggleExplorer}
                 onToggleChat={toggleChat}
                 onSwapSidebarPositions={swapSidebarPositions}

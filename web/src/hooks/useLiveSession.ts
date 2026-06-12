@@ -23,6 +23,7 @@ export function useLiveSession(
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const activeFileIdRef = useRef(activeFileId);
     const isFollowingHostRef = useRef(isFollowingHost);
+    const hostViewRef = useRef<{ activeFileId: string; fileValueString: string } | null>(null);
 
     useEffect(() => {
         activeFileIdRef.current = activeFileId;
@@ -31,6 +32,29 @@ export function useLiveSession(
     useEffect(() => {
         isFollowingHostRef.current = isFollowingHost;
     }, [isFollowingHost]);
+
+    const recordHostView = (view: { activeFileId: string; fileValueString: string }) => {
+        hostViewRef.current = view;
+    };
+
+    const applyHostView = (view: { activeFileId: string; fileValueString: string }) => {
+        setActiveFileId(view.activeFileId);
+        setCode(view.fileValueString);
+    };
+
+    const toggleFollowHost = useCallback(() => {
+        if (isFollowingHostRef.current) {
+            isFollowingHostRef.current = false;
+            setIsFollowingHost(false);
+            return;
+        }
+
+        isFollowingHostRef.current = true;
+        setIsFollowingHost(true);
+        if (hostViewRef.current) {
+            applyHostView(hostViewRef.current);
+        }
+    }, []);
 
     useEffect(() => {
         if (!viewer) return;
@@ -66,9 +90,13 @@ export function useLiveSession(
                 activeFileId: string;
                 fileValueString: string;
             };
-            if (!isFollowingHost) return;
-            setActiveFileId(data.activeFileId);
-            setCode(data.fileValueString);
+            const view = {
+                activeFileId: data.activeFileId,
+                fileValueString: data.fileValueString,
+            };
+            recordHostView(view);
+            if (!isFollowingHostRef.current) return;
+            applyHostView(view);
         });
         const unsubFiles = on('files:stream', (payload) => {
             const data = payload as {
@@ -76,11 +104,15 @@ export function useLiveSession(
                 activeFileId: string;
                 fileValueString: string;
             };
+            const view = {
+                activeFileId: data.activeFileId,
+                fileValueString: data.fileValueString,
+            };
+            recordHostView(view);
             setLiveFiles(data.files);
             const { fileMap: nextMap } = flatFilesToTree(data.files);
             if (isFollowingHostRef.current) {
-                setActiveFileId(data.activeFileId);
-                setCode(data.fileValueString);
+                applyHostView(view);
                 return;
             }
             const currentId = activeFileIdRef.current;
@@ -127,6 +159,7 @@ export function useLiveSession(
         fileNodes: nodes,
         isFollowingHost,
         setIsFollowingHost,
+        toggleFollowHost,
         selectFile,
         sendChat,
         readOnly: true,

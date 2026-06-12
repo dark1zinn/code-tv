@@ -46,7 +46,6 @@ interface FileExplorerProps {
     nodes: FileNode[];
     activeFileId: string;
     onSelectFile: (fileId: string) => void;
-    visible: boolean;
     onToggle: () => void;
     readOnly?: boolean;
     onCreateFile?: (parentNodePath: string, name: string) => void;
@@ -59,7 +58,6 @@ export function FileExplorer({
     nodes,
     activeFileId,
     onSelectFile,
-    visible,
     onToggle,
     readOnly = false,
     onCreateFile,
@@ -226,19 +224,6 @@ export function FileExplorer({
             </ContextMenu>
         );
     };
-
-    if (!visible) {
-        return (
-            <button
-                type="button"
-                aria-label="Show explorer sidebar"
-                className="absolute left-2 top-2 rounded bg-bg-sidecar px-2 py-1 text-sm"
-                onClick={onToggle}
-            >
-                Show Explorer
-            </button>
-        );
-    }
 
     const dialogTitle =
         pendingAction?.kind === 'create-file'

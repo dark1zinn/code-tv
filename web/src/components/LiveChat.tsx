@@ -1,4 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { PanelLeftClose, PanelRightClose } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FOCUS_CHAT_SHORTCUT_LABEL } from '@/lib/keyboard-shortcuts';
+import type { SidebarAlignment } from '@/hooks/useEditorLayout';
 
 export interface ChatMessage {
     sender: string;
@@ -10,13 +14,19 @@ export interface ChatMessage {
 interface LiveChatProps {
     messages: ChatMessage[];
     onSend: (text: string) => void;
-    visible: boolean;
     onToggle: () => void;
+    collapseSide?: SidebarAlignment;
 }
 
-export function LiveChat({ messages, onSend, visible, onToggle }: LiveChatProps) {
+export function LiveChat({
+    messages,
+    onSend,
+    onToggle,
+    collapseSide = 'right',
+}: LiveChatProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const logRef = useRef<HTMLDivElement>(null);
+    const CollapseIcon = collapseSide === 'left' ? PanelLeftClose : PanelRightClose;
 
     useEffect(() => {
         if (logRef.current) {
@@ -24,26 +34,20 @@ export function LiveChat({ messages, onSend, visible, onToggle }: LiveChatProps)
         }
     }, [messages]);
 
-    if (!visible) {
-        return (
-            <button
-                type="button"
-                aria-label="Toggle live chat sidebar visibility"
-                className="absolute right-2 top-2 rounded bg-bg-sidecar px-2 py-1 text-sm"
-                onClick={onToggle}
-            >
-                Show Chat
-            </button>
-        );
-    }
-
     return (
         <aside className="flex h-full w-full flex-col border-divider bg-bg-sidecar border-l">
             <div className="flex items-center justify-between border-b border-divider px-3 py-2">
                 <span className="text-sm font-semibold">Live Chat</span>
-                <button type="button" className="text-xs text-accent" onClick={onToggle}>
-                    Hide
-                </button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label="Hide chat sidebar"
+                    onClick={onToggle}
+                >
+                    <CollapseIcon />
+                </Button>
             </div>
             <div
                 ref={logRef}
@@ -80,7 +84,13 @@ export function LiveChat({ messages, onSend, visible, onToggle }: LiveChatProps)
                     id="live-room-chat"
                     ref={inputRef}
                     className="w-full rounded border border-divider bg-bg-base px-2 py-1 text-sm"
-                    placeholder="Send a message"
+                    placeholder={FOCUS_CHAT_SHORTCUT_LABEL}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            inputRef.current?.blur();
+                        }
+                    }}
                 />
             </form>
         </aside>
