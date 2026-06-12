@@ -1,0 +1,41 @@
+# Dependencies — installed inside the image
+node_modules
+web/node_modules
+server/node_modules
+
+# Build output — produced inside the image
+dist
+web/dist
+server/dist
+
+# Local runtime data
+server/data
+
+# Environment and secrets
+.env
+.env.*
+
+# Git and editor
+.git
+.gitignore
+.cursor
+.direnv
+
+# Nix dev shell (not used in the container)
+flake.nix
+flake.lock
+
+# Dev-only compose stack
+docker-compose.dev.yml
+
+# Docs and misc
+*.md
+!README.md
+
+# OS and logs
+.DS_Store
+Thumbs.db
+*.log
+
+# Legacy binary lockfile
+bun.lockb
