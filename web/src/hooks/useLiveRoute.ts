@@ -11,7 +11,7 @@ export interface ViewerContext {
     tags: string[];
     language: string;
     hostUsername?: string;
-    files: Array<{ path: string; content: string }>;
+    files: Array<{ path: string }>;
 }
 
 export function useLiveRoute() {

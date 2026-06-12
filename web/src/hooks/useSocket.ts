@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 export function useSocket() {
@@ -21,17 +21,21 @@ export function useSocket() {
         };
     }, []);
 
-    const emit = <T = unknown>(event: string, payload?: unknown) =>
-        new Promise<T>((resolve) => {
-            socketRef.current?.emit(event, payload, resolve);
-        });
+    const emit = useCallback(
+        <T = unknown>(event: string, payload?: unknown) =>
+            new Promise<T>((resolve) => {
+                socketRef.current?.emit(event, payload, resolve);
+            }),
+        [],
+    );
 
-    const on = (event: string, handler: (payload: unknown) => void) => {
-        socketRef.current?.on(event, handler);
+    const on = useCallback((event: string, handler: (payload: unknown) => void) => {
+        const socket = socketRef.current;
+        socket?.on(event, handler);
         return () => {
             socketRef.current?.off(event, handler);
         };
-    };
+    }, []);
 
     return { connected, emit, on, socket: socketRef };
 }

@@ -132,7 +132,7 @@ describe('StreamGateway', () => {
         expect(result.history).toHaveLength(1);
     });
 
-    it('broadcasts code stream payloads to the room', () => {
+    it('broadcasts code input payloads to the room', () => {
         const host = createMockSocket('host-1', '203.0.113.1');
         (gateway as unknown as { socketProfiles: Map<string, unknown> }).socketProfiles.set(
             'host-1',
@@ -142,9 +142,22 @@ describe('StreamGateway', () => {
 
         const payload = {
             roomSlug: 'room-1',
-            activeFileId: 'main.ts',
+            activeFileId: 'root/main.ts',
+            changes: [
+                {
+                    range: {
+                        startLineNumber: 1,
+                        startColumn: 1,
+                        endLineNumber: 1,
+                        endColumn: 1,
+                    },
+                    rangeOffset: 0,
+                    rangeLength: 0,
+                    text: 'x',
+                },
+            ],
+            cursorCoordinates: { line: 1, column: 2 },
             fileValueString: 'const x = 1;',
-            cursorCoordinates: { line: 1, column: 4 },
         };
 
         const emitted: unknown[] = [];
@@ -157,7 +170,7 @@ describe('StreamGateway', () => {
             }),
         };
 
-        const result = gateway.handleCodeStream(hostSocket as Socket, payload);
+        const result = gateway.handleCodeInput(hostSocket as Socket, payload);
         expect(result).toEqual({ ok: true });
         expect(emitted[0]).toEqual(payload);
     });

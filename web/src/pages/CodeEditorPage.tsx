@@ -17,7 +17,6 @@ export function CodeEditorPage() {
     const [username, setUsername] = useState('Host');
     const started = useRef(false);
     const streamIdRef = useRef<string | null>(null);
-    const cursorRef = useRef({ line: 1, column: 1 });
 
     useEffect(() => {
         streamIdRef.current = streamId;
@@ -126,14 +125,15 @@ export function CodeEditorPage() {
                 onCreateFolder={(parent, name) => void session.createFolder(parent, name)}
                 onRenamePath={(path, name) => void session.renamePath(path, name)}
                 onDeletePath={(path) => void session.deletePath(path)}
-                onCodeChange={(value) => {
+                onModelContentChange={(changes, value, cursor) => {
                     session.setCode(value);
+                    void session.streamCodeInput(changes, cursor, value);
                     session.persistWorkspace(value, session.activeFileId);
-                    void session.streamCode(value, cursorRef.current);
                 }}
+                onCodeChange={() => {}}
                 onCursorChange={(position) => {
-                    cursorRef.current = position;
-                    void session.streamCode(session.code, position);
+                    session.setCursorPosition(position);
+                    void session.streamCodeCursor(position);
                 }}
                 onSendChat={(text) => void session.sendChat(text)}
             />

@@ -87,3 +87,31 @@
             sans-serif;
     }
 }
+
+/*
+ * Viewer host cursor: Monaco hides the cursor when unfocused and forces solid
+ * (no blink) when readOnly is true — see viewCursors._getCursorBlinking().
+ * Keep the cursor visible without touching opacity, and drive blink ourselves.
+ */
+@keyframes codetv-host-cursor-blink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+
+.codetv-viewer-editor .monaco-editor .cursors-layer > .cursor {
+    visibility: visible !important;
+    animation: codetv-host-cursor-blink 1s step-end infinite !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .codetv-viewer-editor .monaco-editor .cursors-layer > .cursor {
+        animation: none !important;
+        opacity: 1;
+    }
+}

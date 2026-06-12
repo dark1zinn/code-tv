@@ -19,18 +19,43 @@ export type MessagePayload = {
     color: string;
 };
 
-export interface CodeStreamPayload {
+export interface MonacoContentChange {
+    range: {
+        startLineNumber: number;
+        startColumn: number;
+        endLineNumber: number;
+        endColumn: number;
+    };
+    rangeOffset: number;
+    rangeLength: number;
+    text: string;
+}
+
+export interface CodeInputPayload {
     roomSlug: string;
     activeFileId: string;
+    changes: MonacoContentChange[];
+    cursorCoordinates: { line: number; column: number };
     fileValueString: string;
+}
+
+export interface CodeSwitchPayload {
+    roomSlug: string;
+    activeFileId: string;
+    cursorCoordinates: { line: number; column: number };
+    fileValueString: string;
+}
+
+export interface CodeCursorPayload {
+    roomSlug: string;
+    activeFileId: string;
     cursorCoordinates: { line: number; column: number };
 }
 
 export interface FilesStreamPayload {
     roomSlug: string;
-    files: Array<{ path: string; content: string }>;
+    files: Array<{ path: string }>;
     activeFileId: string;
-    fileValueString: string;
 }
 
 export interface ChatMessagePayload {
@@ -139,15 +164,39 @@ export class StreamGateway implements OnGatewayConnection {
         return { ok: true };
     }
 
-    @SubscribeMessage('code:stream')
-    handleCodeStream(@ConnectedSocket() client: Socket, @MessageBody() payload: CodeStreamPayload) {
+    @SubscribeMessage('code:input')
+    handleCodeInput(@ConnectedSocket() client: Socket, @MessageBody() payload: CodeInputPayload) {
         const profile = this.socketProfiles.get(client.id);
         const hostIp = this.roomHosts.get(payload.roomSlug);
         if (!profile || hostIp !== profile.ipHash) {
             return { error: 'forbidden' };
         }
 
-        client.to(payload.roomSlug).emit('code:stream', payload);
+        client.to(payload.roomSlug).emit('code:input', payload);
+        return { ok: true };
+    }
+
+    @SubscribeMessage('code:switch')
+    handleCodeSwitch(@ConnectedSocket() client: Socket, @MessageBody() payload: CodeSwitchPayload) {
+        const profile = this.socketProfiles.get(client.id);
+        const hostIp = this.roomHosts.get(payload.roomSlug);
+        if (!profile || hostIp !== profile.ipHash) {
+            return { error: 'forbidden' };
+        }
+
+        client.to(payload.roomSlug).emit('code:switch', payload);
+        return { ok: true };
+    }
+
+    @SubscribeMessage('code:cursor')
+    handleCodeCursor(@ConnectedSocket() client: Socket, @MessageBody() payload: CodeCursorPayload) {
+        const profile = this.socketProfiles.get(client.id);
+        const hostIp = this.roomHosts.get(payload.roomSlug);
+        if (!profile || hostIp !== profile.ipHash) {
+            return { error: 'forbidden' };
+        }
+
+        client.to(payload.roomSlug).emit('code:cursor', payload);
         return { ok: true };
     }
 

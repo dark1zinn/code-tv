@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage } from '@/components/LiveChat';
+import type { CursorCoordinates, MonacoContentChange } from '@/lib/code-stream';
 import {
     createFileEntry,
     createFolderEntry,
@@ -44,6 +45,7 @@ export function useHostSession(
     const filesRef = useRef(files);
     const activeFileIdRef = useRef(activeFileId);
     const codeRef = useRef(code);
+    const cursorRef = useRef<CursorCoordinates>({ line: 1, column: 1 });
 
     useEffect(() => {
         filesRef.current = files;
@@ -67,11 +69,6 @@ export function useHostSession(
         setActiveFileId(id);
         setCode(initialMap[id] ?? 'export {}\n');
     }, [workspace?.id]);
-
-    useEffect(() => {
-        if (!connected || !streamId) return;
-        void emit('room:host-join', streamId);
-    }, [connected, streamId, emit]);
 
     useEffect(() => {
         const unsubHistory = on('chat:history', (history) => {
@@ -99,13 +96,83 @@ export function useHostSession(
     );
 
     const broadcastFiles = useCallback(
-        async (nextFiles: FlatFile[], nextActiveId: string, nextCode: string) => {
+        async (nextFiles: FlatFile[], nextActiveId: string) => {
             if (!streamId) return;
             await emit('files:stream', {
                 roomSlug: streamId,
-                files: nextFiles,
+                files: nextFiles.map((file) => ({ path: file.path })),
                 activeFileId: nextActiveId,
+            });
+        },
+        [emit, streamId],
+    );
+
+    const streamCodeSwitch = useCallback(
+        async (
+            nextActiveId: string,
+            cursor: CursorCoordinates = cursorRef.current,
+            nextCode: string = fileContentById(filesRef.current, nextActiveId) || codeRef.current,
+        ) => {
+            if (!streamId) return;
+            await emit('code:switch', {
+                roomSlug: streamId,
+                activeFileId: nextActiveId,
+                cursorCoordinates: cursor,
                 fileValueString: nextCode,
+            });
+        },
+        [emit, streamId],
+    );
+
+    useEffect(() => {
+        if (!connected || !streamId) return;
+        void (async () => {
+            await emit('room:host-join', streamId);
+            await broadcastFiles(filesRef.current, activeFileIdRef.current);
+            await streamCodeSwitch(activeFileIdRef.current);
+        })();
+    }, [connected, streamId, emit, broadcastFiles, streamCodeSwitch]);
+
+    const streamCodeInput = useCallback(
+        async (
+            changes: MonacoContentChange[],
+            cursor: CursorCoordinates = cursorRef.current,
+            nextCode: string = codeRef.current,
+        ) => {
+            if (!streamId) return;
+            await emit('code:input', {
+                roomSlug: streamId,
+                activeFileId: activeFileIdRef.current,
+                changes,
+                cursorCoordinates: cursor,
+                fileValueString: nextCode,
+            });
+        },
+        [emit, streamId],
+    );
+
+    const streamLiveContent = useCallback(
+        async (nextCode: string, cursor: CursorCoordinates = cursorRef.current) => {
+            if (!streamId) return;
+            codeRef.current = nextCode;
+            await emit('code:input', {
+                roomSlug: streamId,
+                activeFileId: activeFileIdRef.current,
+                changes: [],
+                cursorCoordinates: cursor,
+                fileValueString: nextCode,
+            });
+        },
+        [emit, streamId],
+    );
+
+    const streamCodeCursor = useCallback(
+        async (cursor: CursorCoordinates = cursorRef.current) => {
+            if (!streamId) return;
+            await emit('code:cursor', {
+                roomSlug: streamId,
+                activeFileId: activeFileIdRef.current,
+                cursorCoordinates: cursor,
             });
         },
         [emit, streamId],
@@ -116,7 +183,8 @@ export function useHostSession(
             nextFiles: FlatFile[],
             options?: { activeFileId?: string; code?: string },
         ) => {
-            const nextActiveId = options?.activeFileId ?? activeFileIdRef.current;
+            const previousActiveId = activeFileIdRef.current;
+            const nextActiveId = options?.activeFileId ?? previousActiveId;
             const nextCode =
                 options?.code ?? fileContentById(nextFiles, nextActiveId) ?? codeRef.current;
 
@@ -124,9 +192,12 @@ export function useHostSession(
             setActiveFileId(nextActiveId);
             setCode(nextCode);
             await persistFiles(nextFiles);
-            await broadcastFiles(nextFiles, nextActiveId, nextCode);
+            await broadcastFiles(nextFiles, nextActiveId);
+            if (nextActiveId !== previousActiveId) {
+                await streamCodeSwitch(nextActiveId);
+            }
         },
-        [persistFiles, broadcastFiles],
+        [persistFiles, broadcastFiles, streamCodeSwitch],
     );
 
     const flushPendingPersist = useCallback(() => {
@@ -138,7 +209,8 @@ export function useHostSession(
         const nextFiles = upsertFileContent(filesRef.current, fileId, codeRef.current);
         filesRef.current = nextFiles;
         setFiles(nextFiles);
-    }, []);
+        void persistFiles(nextFiles);
+    }, [persistFiles]);
 
     const persistWorkspace = useCallback(
         (nextCode: string, fileId: string) => {
@@ -147,23 +219,12 @@ export function useHostSession(
             persistTimer.current = setTimeout(() => {
                 persistTimer.current = null;
                 const nextFiles = upsertFileContent(filesRef.current, fileId, nextCode);
-                void applyFiles(nextFiles, { activeFileId: fileId, code: nextCode });
+                filesRef.current = nextFiles;
+                setFiles(nextFiles);
+                void persistFiles(nextFiles);
             }, 800);
         },
-        [workspace, applyFiles],
-    );
-
-    const streamCode = useCallback(
-        async (nextCode: string, cursor: { line: number; column: number }) => {
-            if (!streamId) return;
-            await emit('code:stream', {
-                roomSlug: streamId,
-                activeFileId: activeFileIdRef.current,
-                fileValueString: nextCode,
-                cursorCoordinates: cursor,
-            });
-        },
-        [emit, streamId],
+        [workspace, persistFiles],
     );
 
     const sendChat = useCallback(
@@ -179,18 +240,26 @@ export function useHostSession(
         await emit('room:close', streamId);
     }, [emit, streamId]);
 
-    const selectFile = useCallback((fileId: string) => {
-        if (fileId === activeFileIdRef.current) return;
+    const setCursorPosition = useCallback((cursor: CursorCoordinates) => {
+        cursorRef.current = cursor;
+    }, []);
 
-        flushPendingPersist();
+    const selectFile = useCallback(
+        (fileId: string) => {
+            if (fileId === activeFileIdRef.current) return;
 
-        const currentId = activeFileIdRef.current;
-        const nextFiles = upsertFileContent(filesRef.current, currentId, codeRef.current);
-        filesRef.current = nextFiles;
-        setFiles(nextFiles);
-        setActiveFileId(fileId);
-        setCode(fileContentById(nextFiles, fileId));
-    }, [flushPendingPersist]);
+            flushPendingPersist();
+
+            const currentId = activeFileIdRef.current;
+            const nextFiles = upsertFileContent(filesRef.current, currentId, codeRef.current);
+            filesRef.current = nextFiles;
+            setFiles(nextFiles);
+            setActiveFileId(fileId);
+            setCode(fileContentById(nextFiles, fileId));
+            void streamCodeSwitch(fileId);
+        },
+        [flushPendingPersist, streamCodeSwitch],
+    );
 
     const createFile = useCallback(
         async (parentNodePath: string, name: string) => {
@@ -270,7 +339,10 @@ export function useHostSession(
         fileNodes: nodes,
         selectFile,
         setCode,
-        streamCode,
+        streamCodeInput,
+        streamLiveContent,
+        streamCodeCursor,
+        setCursorPosition,
         sendChat,
         stopStreaming,
         persistWorkspace,

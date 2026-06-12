@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { IdentityRequest } from '../identity/identity.middleware';
 import { WorkspaceService } from './workspace.service';
 
@@ -23,6 +23,11 @@ export class WorkspaceController {
     @Get(':workspaceId/viewer')
     async viewer(@Param('workspaceId') workspaceId: string) {
         return this.workspaceService.getViewerContext(workspaceId);
+    }
+
+    @Get(':workspaceId/file')
+    async file(@Param('workspaceId') workspaceId: string, @Query('path') path: string) {
+        return this.workspaceService.getFileContent(workspaceId, path);
     }
 
     @Get(':id')

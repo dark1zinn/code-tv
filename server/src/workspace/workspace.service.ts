@@ -33,6 +33,10 @@ export interface WorkspaceDto {
     files?: WorkspaceFileDto[];
 }
 
+export interface WorkspaceFilePathDto {
+    path: string;
+}
+
 export interface WorkspaceViewerDto {
     workspaceId: string;
     isLive: boolean;
@@ -41,7 +45,7 @@ export interface WorkspaceViewerDto {
     tags: string[];
     language: string;
     hostUsername?: string;
-    files: WorkspaceFileDto[];
+    files: WorkspaceFilePathDto[];
 }
 
 type WorkspaceRow = typeof workspaces.$inferSelect;
@@ -187,7 +191,7 @@ export class WorkspaceService {
                 .from(profiles)
                 .where(eq(profiles.ipAddress, liveStream.hostIp));
 
-            const files = await this.getWorkspaceFiles(workspaceId);
+            const files = await this.getWorkspaceFilePaths(workspaceId);
             return {
                 workspaceId,
                 isLive: true,
@@ -200,7 +204,7 @@ export class WorkspaceService {
             };
         }
 
-        const files = await this.getWorkspaceFiles(workspaceId);
+        const files = await this.getWorkspaceFilePaths(workspaceId);
         return {
             workspaceId,
             isLive: false,
@@ -233,6 +237,27 @@ export class WorkspaceService {
             updatedAt: row.updatedAt,
             createdAt: row.createdAt,
         };
+    }
+
+    async getFileContent(workspaceId: string, path: string): Promise<{ path: string; content: string }> {
+        await this.getWorkspaceOrThrow(workspaceId);
+        const normalized = path.replace(/^\/+/, '');
+        const [file] = await this.db
+            .select()
+            .from(workspaceFiles)
+            .where(
+                and(
+                    eq(workspaceFiles.workspaceId, workspaceId),
+                    eq(workspaceFiles.path, normalized),
+                ),
+            );
+        if (!file) throw new NotFoundException('File not found');
+        return { path: file.path, content: file.content };
+    }
+
+    private async getWorkspaceFilePaths(workspaceId: string): Promise<WorkspaceFilePathDto[]> {
+        const files = await this.getWorkspaceFiles(workspaceId);
+        return files.map((file) => ({ path: file.path }));
     }
 
     private async getWorkspaceFiles(workspaceId: string): Promise<WorkspaceFileDto[]> {

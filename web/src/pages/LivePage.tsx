@@ -72,7 +72,12 @@ export function LivePage() {
                 onSwapSidebarPositions={swapSidebarPositions}
                 onSelectFile={session.selectFile}
                 onCodeChange={() => {}}
-                onManualInteraction={() => session.setIsFollowingHost(false)}
+                liveRemote={session.liveRemote}
+                editorRevision={session.editorRevision}
+                editorContentReady={session.editorContentReady}
+                showHostCursor={session.showHostCursor}
+                onRegisterEditorHandle={session.registerEditorHandle}
+                onEditorReady={session.notifyEditorReady}
                 onSendChat={(text) => void session.sendChat(text)}
                 onToggleFollowHost={session.toggleFollowHost}
             />

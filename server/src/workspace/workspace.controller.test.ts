@@ -137,5 +137,17 @@ describe('WorkspaceController', () => {
         expect(body.workspaceId).toBe(workspaceId);
         expect(body.isLive).toBe(false);
         expect(body.files.length).toBeGreaterThan(0);
+        expect(body.files[0]?.path).toBeDefined();
+        expect(body.files[0]?.content).toBeUndefined();
+    });
+
+    it('returns a single saved file for viewers', async () => {
+        const response = await fetch(
+            `http://127.0.0.1:${port}/_api/workspaces/${workspaceId}/file?path=${encodeURIComponent(DEFAULT_README_PATH)}`,
+        );
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.path).toBe(DEFAULT_README_PATH);
+        expect(body.content).toBe(DEFAULT_README_CONTENT);
     });
 });

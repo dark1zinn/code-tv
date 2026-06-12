@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { CollapsedSidebarRail } from '@/components/CollapsedSidebarRail';
 import { useCollapsedChatUnread } from '@/hooks/useCollapsedChatUnread';
-import { CodeEditor, focusCodeEditor } from '@/components/CodeEditor';
+import { CodeEditor, focusCodeEditor, type CodeEditorHandle } from '@/components/CodeEditor';
 import { monacoLanguageFromPath } from '@/lib/files';
+import type { CursorCoordinates, MonacoContentChange } from '@/lib/code-stream';
 import { EditorTabHeader } from '@/components/EditorTabHeader';
 import { FileExplorer, type FileNode } from '@/components/FileExplorer';
 import { focusChatInput, LiveChat, type ChatMessage } from '@/components/LiveChat';
@@ -21,6 +22,10 @@ interface EditorWorkspaceProps {
     messages: ChatMessage[];
     readOnly: boolean;
     chatEnabled: boolean;
+    liveRemote?: boolean;
+    editorRevision?: number;
+    editorContentReady?: boolean;
+    showHostCursor?: boolean;
     layout: EditorLayoutMatrix;
     isFollowingHost?: boolean;
     followHostEnabled?: boolean;
@@ -34,8 +39,14 @@ interface EditorWorkspaceProps {
     onRenamePath?: (nodePath: string, name: string) => void;
     onDeletePath?: (nodePath: string) => void;
     onCodeChange: (value: string) => void;
-    onCursorChange?: (position: { line: number; column: number }) => void;
-    onManualInteraction?: () => void;
+    onModelContentChange?: (
+        changes: MonacoContentChange[],
+        value: string,
+        cursor: CursorCoordinates,
+    ) => void;
+    onCursorChange?: (position: CursorCoordinates) => void;
+    onRegisterEditorHandle?: (handle: CodeEditorHandle | null) => void;
+    onEditorReady?: () => void;
     onSendChat: (text: string) => void;
     onToggleFollowHost?: () => void;
 }
@@ -47,6 +58,10 @@ export function EditorWorkspace({
     messages,
     readOnly,
     chatEnabled,
+    liveRemote,
+    editorRevision = 0,
+    editorContentReady = true,
+    showHostCursor = false,
     layout,
     isFollowingHost,
     followHostEnabled,
@@ -60,12 +75,15 @@ export function EditorWorkspace({
     onRenamePath,
     onDeletePath,
     onCodeChange,
+    onModelContentChange,
     onCursorChange,
-    onManualInteraction,
+    onRegisterEditorHandle,
+    onEditorReady,
     onSendChat,
     onToggleFollowHost,
 }: EditorWorkspaceProps) {
-    const cursorRef = useRef({ line: 1, column: 1 });
+    const cursorRef = useRef<CursorCoordinates>({ line: 1, column: 1 });
+    const editorHandleRef = useRef<CodeEditorHandle | null>(null);
     const chatEnabledRef = useRef(chatEnabled);
     const layoutRef = useRef(layout);
     chatEnabledRef.current = chatEnabled;
@@ -171,18 +189,37 @@ export function EditorWorkspace({
                     isFollowingHost={isFollowingHost}
                     onToggleFollowHost={onToggleFollowHost}
                 />
-                <CodeEditor
+                {editorContentReady ? (
+                    <CodeEditor
+                    key={
+                        liveRemote
+                            ? `${activeFileId}:${editorRevision}`
+                            : `${activeFileId}:${monacoLanguageFromPath(activeFileId)}`
+                    }
+                    ref={(handle) => {
+                        editorHandleRef.current = handle;
+                        onRegisterEditorHandle?.(handle);
+                    }}
                     language={monacoLanguageFromPath(activeFileId)}
                     fileId={activeFileId}
                     value={code}
                     readOnly={readOnly}
+                    liveRemote={liveRemote}
+                    editorRevision={editorRevision}
+                    showHostCursor={showHostCursor}
                     onChange={onCodeChange}
+                    onModelContentChange={onModelContentChange}
                     onCursorChange={(position) => {
                         cursorRef.current = position;
                         onCursorChange?.(position);
                     }}
-                    onManualInteraction={onManualInteraction}
-                />
+                    onEditorReady={onEditorReady}
+                    />
+                ) : (
+                    <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                        Loading editor...
+                    </div>
+                )}
             </div>
 
             {renderSidebar('right')}
