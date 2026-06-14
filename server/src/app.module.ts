@@ -16,7 +16,10 @@ import { WorkspaceModule } from './workspace/workspace.module';
         ScheduleModule.forRoot(),
         ServeStaticModule.forRoot({
             rootPath: join(import.meta.dir, '..', '..', 'web', 'dist'),
-            exclude: ['/_api*', '/_ws*'],
+            exclude: ['/_api/{*path}', '/_ws/{*path}'],
+            serveStaticOptions: {
+                fallthrough: true,
+            },
         }),
         DatabaseModule,
         StorageModule,
