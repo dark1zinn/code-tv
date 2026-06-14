@@ -10,6 +10,8 @@ server/dist
 
 # Local runtime data
 server/data
+/data
+*.db
 
 # Environment and secrets
 .env
@@ -25,8 +27,8 @@ server/data
 flake.nix
 flake.lock
 
-# Dev-only compose stack
-docker-compose.dev.yml
+# Compose stacks
+docker-compose*.{yml,yaml}
 
 # Docs and misc
 *.md

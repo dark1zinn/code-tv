@@ -16,12 +16,15 @@ FROM oven/bun:${BUN_VERSION} AS production-runtime
 WORKDIR /app
 
 COPY --from=pipeline-builder /workspace/server/dist ./server/dist
-COPY --from=pipeline-builder /workspace/server/node_modules ./server/node_modules
 COPY --from=pipeline-builder /workspace/server/package.json ./server/package.json
-COPY --from=pipeline-builder /workspace/node_modules ./node_modules
 COPY --from=pipeline-builder /workspace/web/dist ./web/dist
+# Despite not needed, we keep it to make sure Bun doesn't complain about the web workspace and lockfile changes.
+COPY --from=pipeline-builder /workspace/web/package.json ./web/package.json
+COPY --from=pipeline-builder /workspace/package.json /workspace/bun.lock ./
 
 RUN mkdir -p /app/server/data
+
+RUN bun install --filter server --no-cache --production
 
 EXPOSE 3000
 VOLUME ["/app/server/data"]
