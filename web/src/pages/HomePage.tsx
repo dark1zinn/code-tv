@@ -4,26 +4,16 @@ import { AppNavbar } from '@/components/AppNavbar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-interface StreamCard {
-    id: string;
-    title: string;
-    language: string;
-    hostUsername?: string;
-    workspaceId?: string | null;
-}
+import { useLiveStreams } from '@/hooks/useLiveStreams';
 
 export function HomePage() {
-    const [streams, setStreams] = useState<StreamCard[]>([]);
+    const streams = useLiveStreams();
     const [username, setUsername] = useState('Connecting...');
 
     useEffect(() => {
         void fetch('/_api/profile')
             .then((res) => res.json())
             .then((body: { username: string }) => setUsername(body.username));
-        void fetch('/_api/streams')
-            .then((res) => res.json())
-            .then((body: StreamCard[]) => setStreams(body));
     }, []);
 
     return (
