@@ -1,5 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
+import { act, renderHook } from '@testing-library/react';
 import type { ViewerContext } from './useLiveRoute';
+import { useLiveSession } from './useLiveSession';
 
 const viewer: ViewerContext = {
     workspaceId: 'ws-1',
@@ -12,6 +14,43 @@ const viewer: ViewerContext = {
 };
 
 describe('useLiveSession follow host', () => {
+    it('bootstraps the editor from saved content while waiting for live stream', async () => {
+        const handlers = new Map<string, (payload: unknown) => void>();
+        const on = mock((event: string, handler: (payload: unknown) => void) => {
+            handlers.set(event, handler);
+            return () => {
+                handlers.delete(event);
+            };
+        });
+        const emit = mock(async () => ({}));
+
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+            const url = String(input);
+            if (url.includes('/file?path=README.md')) {
+                return new Response(JSON.stringify({ content: '# Hello' }), {
+                    status: 200,
+                });
+            }
+            return new Response('', { status: 404 });
+        }) as typeof fetch;
+
+        const { result } = renderHook(() =>
+            useLiveSession(viewer, 'watch', emit, on, true),
+        );
+
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(result.current.editorContentReady).toBe(true);
+        expect(result.current.code).toBe('# Hello');
+        expect(result.current.activeFileId).toBe('root/README.md');
+
+        globalThis.fetch = originalFetch;
+    });
+
     it('snaps to the host active file when follow is re-enabled', async () => {
         const handlers = new Map<string, (payload: unknown) => void>();
         const on = mock((event: string, handler: (payload: unknown) => void) => {
@@ -35,9 +74,6 @@ describe('useLiveSession follow host', () => {
             }
             return new Response('', { status: 404 });
         }) as typeof fetch;
-
-        const { renderHook, act } = await import('@testing-library/react');
-        const { useLiveSession } = await import('./useLiveSession');
 
         const { result } = renderHook(() =>
             useLiveSession(viewer, 'watch', emit, on, true),

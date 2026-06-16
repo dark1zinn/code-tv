@@ -82,9 +82,11 @@ export function useLiveSession(
     const editorContentReady = contentReady;
 
     const recordHostStream = useCallback(
-        (fileId: string, content: string, cursor?: CursorCoordinates) => {
+        (fileId: string, content?: string, cursor?: CursorCoordinates) => {
             hostActiveFileIdRef.current = fileId;
-            hostLiveContentRef.current = content;
+            if (content !== undefined) {
+                hostLiveContentRef.current = content;
+            }
             if (cursor) hostLiveCursorRef.current = cursor;
             setHostActiveFileId(fileId);
         },
@@ -169,27 +171,6 @@ export function useLiveSession(
         [tryFinishDocumentSync],
     );
 
-    const openFromStream = useCallback(
-        (fileId: string, cursor?: CursorCoordinates) => {
-            const content = hostLiveContentRef.current;
-            if (content === null) {
-                setActiveFileId(fileId);
-                setContentReady(false);
-                streamSyncedFileIdRef.current = null;
-                if (activeFileIdRef.current !== fileId) {
-                    setEditorRevision((revision) => revision + 1);
-                }
-                return;
-            }
-
-            mountDocument(fileId, content, {
-                cursor: cursor ?? hostLiveCursorRef.current ?? undefined,
-                source: 'stream',
-            });
-        },
-        [mountDocument],
-    );
-
     const openFromSaved = useCallback(
         async (fileId: string, options?: { cursor?: CursorCoordinates }) => {
             if (!viewer) return;
@@ -204,6 +185,22 @@ export function useLiveSession(
             mountDocument(fileId, content, { cursor: options?.cursor, source: 'saved' });
         },
         [viewer, mountDocument],
+    );
+
+    const openFromStream = useCallback(
+        (fileId: string, cursor?: CursorCoordinates) => {
+            const content = hostLiveContentRef.current;
+            if (content !== null) {
+                mountDocument(fileId, content, {
+                    cursor: cursor ?? hostLiveCursorRef.current ?? undefined,
+                    source: 'stream',
+                });
+                return;
+            }
+
+            void openFromSaved(fileId, { cursor });
+        },
+        [mountDocument, openFromSaved],
     );
 
     const openFile = useCallback(
@@ -277,7 +274,7 @@ export function useLiveSession(
 
     const handleCodeCursor = useCallback(
         (payload: CodeCursorPayload) => {
-            recordHostStream(payload.activeFileId, hostLiveContentRef.current ?? '', payload.cursorCoordinates);
+            recordHostStream(payload.activeFileId, undefined, payload.cursorCoordinates);
 
             if (!shouldReceiveStream(payload.activeFileId)) return;
             if (activeFileIdRef.current !== payload.activeFileId) return;
@@ -289,18 +286,11 @@ export function useLiveSession(
 
     const handleFilesStream = useCallback(
         (payload: FilesStreamPayload) => {
-            recordHostStream(
-                payload.activeFileId,
-                hostLiveContentRef.current ?? '',
-                hostLiveCursorRef.current ?? undefined,
-            );
+            recordHostStream(payload.activeFileId);
             setLiveFiles(pathsToFlatFiles(payload.files));
 
-            if (
-                isFollowingHostRef.current &&
-                activeFileIdRef.current !== payload.activeFileId
-            ) {
-                openFromStream(payload.activeFileId);
+            if (isFollowingHostRef.current) {
+                openFromStream(payload.activeFileId, hostLiveCursorRef.current ?? undefined);
             }
         },
         [recordHostStream, openFromStream],
@@ -378,6 +368,7 @@ export function useLiveSession(
         setContentReady(false);
         setActiveFileId(firstFileId);
         setCode('');
+        void openFromSaved(firstFileId);
     }, [viewer?.workspaceId, isWatchMode, openFromSaved, firstFileId]);
 
     useEffect(() => {

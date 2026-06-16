@@ -72,6 +72,10 @@ export class StreamGateway implements OnGatewayConnection {
 
     private readonly ephemeralChatBuffer = new Map<string, MessagePayload[]>();
     private readonly roomHosts = new Map<string, string>();
+    private readonly roomStreamState = new Map<
+        string,
+        { files?: FilesStreamPayload; codeSwitch?: CodeSwitchPayload }
+    >();
     private readonly socketProfiles = new Map<string, { ipHash: string; username: string }>();
     constructor(
         private readonly streamService: StreamService,
@@ -149,7 +153,37 @@ export class StreamGateway implements OnGatewayConnection {
         client.join(roomSlug);
         const history = this.ephemeralChatBuffer.get(roomSlug) ?? [];
         client.emit('chat:history', history);
+
+        const streamState = this.roomStreamState.get(roomSlug);
+        if (streamState?.files) {
+            client.emit('files:stream', streamState.files);
+        }
+        if (streamState?.codeSwitch) {
+            client.emit('code:switch', streamState.codeSwitch);
+        }
+
         return { roomSlug, history };
+    }
+
+    private rememberFilesStream(payload: FilesStreamPayload) {
+        const state = this.roomStreamState.get(payload.roomSlug) ?? {};
+        state.files = payload;
+        this.roomStreamState.set(payload.roomSlug, state);
+    }
+
+    private rememberCodeSwitch(payload: CodeSwitchPayload) {
+        const state = this.roomStreamState.get(payload.roomSlug) ?? {};
+        state.codeSwitch = payload;
+        this.roomStreamState.set(payload.roomSlug, state);
+    }
+
+    private rememberLiveCode(payload: CodeInputPayload | CodeSwitchPayload) {
+        this.rememberCodeSwitch({
+            roomSlug: payload.roomSlug,
+            activeFileId: payload.activeFileId,
+            cursorCoordinates: payload.cursorCoordinates,
+            fileValueString: payload.fileValueString,
+        });
     }
 
     @SubscribeMessage('files:stream')
@@ -161,6 +195,7 @@ export class StreamGateway implements OnGatewayConnection {
         }
 
         client.to(payload.roomSlug).emit('files:stream', payload);
+        this.rememberFilesStream(payload);
         return { ok: true };
     }
 
@@ -173,6 +208,7 @@ export class StreamGateway implements OnGatewayConnection {
         }
 
         client.to(payload.roomSlug).emit('code:input', payload);
+        this.rememberLiveCode(payload);
         return { ok: true };
     }
 
@@ -185,6 +221,7 @@ export class StreamGateway implements OnGatewayConnection {
         }
 
         client.to(payload.roomSlug).emit('code:switch', payload);
+        this.rememberCodeSwitch(payload);
         return { ok: true };
     }
 
@@ -239,6 +276,7 @@ export class StreamGateway implements OnGatewayConnection {
 
         this.ephemeralChatBuffer.delete(roomSlug);
         this.roomHosts.delete(roomSlug);
+        this.roomStreamState.delete(roomSlug);
         this.server.to(roomSlug).emit('room:closed', { roomSlug });
         return { roomSlug, streamId: result.streamId };
     }

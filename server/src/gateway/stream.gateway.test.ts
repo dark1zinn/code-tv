@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import type { Server, Socket } from 'socket.io';
-import { StreamGateway } from './stream.gateway';
+import { StreamGateway, type CodeSwitchPayload, type FilesStreamPayload } from './stream.gateway';
 
 type MockSocket = Pick<Socket, 'id' | 'join' | 'emit' | 'to' | 'handshake' | 'disconnect'>;
 
@@ -130,6 +130,73 @@ describe('StreamGateway', () => {
 
         const result = await gateway.handleRoomJoin(client as Socket, 'alpha-bravo-compile');
         expect(result.history).toHaveLength(1);
+    });
+
+    it('replays stream snapshot on room join', async () => {
+        const client = createMockSocket('viewer-1', '203.0.113.2');
+        streams.set('room-1', { hostIp, isLive: true });
+        (
+            gateway as unknown as {
+                roomStreamState: Map<
+                    string,
+                    {
+                        files?: FilesStreamPayload;
+                        codeSwitch?: CodeSwitchPayload;
+                    }
+                >;
+            }
+        ).roomStreamState = new Map([
+            [
+                'room-1',
+                {
+                    files: {
+                        roomSlug: 'room-1',
+                        files: [{ path: 'src/main.ts' }],
+                        activeFileId: 'root/src/main.ts',
+                    },
+                    codeSwitch: {
+                        roomSlug: 'room-1',
+                        activeFileId: 'root/src/main.ts',
+                        cursorCoordinates: { line: 2, column: 3 },
+                        fileValueString: 'const live = true;',
+                    },
+                },
+            ],
+        ]);
+
+        const emitted: Array<{ event: string; payload: unknown }> = [];
+        const viewer = {
+            ...client,
+            emit: (event: string, payload: unknown) => {
+                emitted.push({ event, payload });
+            },
+        };
+
+        await gateway.handleRoomJoin(viewer as Socket, 'room-1');
+
+        expect(emitted).toEqual([
+            {
+                event: 'chat:history',
+                payload: [],
+            },
+            {
+                event: 'files:stream',
+                payload: {
+                    roomSlug: 'room-1',
+                    files: [{ path: 'src/main.ts' }],
+                    activeFileId: 'root/src/main.ts',
+                },
+            },
+            {
+                event: 'code:switch',
+                payload: {
+                    roomSlug: 'room-1',
+                    activeFileId: 'root/src/main.ts',
+                    cursorCoordinates: { line: 2, column: 3 },
+                    fileValueString: 'const live = true;',
+                },
+            },
+        ]);
     });
 
     it('broadcasts code input payloads to the room', () => {
